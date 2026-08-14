@@ -1,0 +1,18 @@
+server:
+  port: 8088
+
+charging:
+  base-url: https://charge-dev.jieyoucloud.com/api/charge
+  sms-send-path: /auth/sendSmsCode/{phone}
+  login-path: /auth/verifySmsCode
+  realname-info-path: /chargeUser/getRealNameInfo
+  upload-path: /common/upload
+  obs-sign-path: /chargeUser/getObsSign
+  sms-salt1: "T6&wG%3nK!5pD#8sJ$7mH^2vR*9fQ@4zB"
+  sms-salt2: "Zx5%Co@8rT#3pK$7fD!9sW^2mQ&4gH*6vJ"
+  test-sms-code: "666666"
+
+logging:
+  level:
+    com.ev.charging.tool: INFO
+    com.ev.charging.tool.util.HttpClient: DEBUG
