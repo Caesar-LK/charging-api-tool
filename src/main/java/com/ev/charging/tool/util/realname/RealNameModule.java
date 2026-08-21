@@ -71,40 +71,13 @@ public class RealNameModule {
 
         RealNameResult lastFailure = null;
         for (RealNameData data : shuffled) {
-            // 尝试上传图片（可选，OCR 失败时用数据池兜底）
-            uploadIfMissing(data);
+            // 临时调整：只校验姓名、身份证号、手机号，去掉附件和紧急联系人
+            String idName = data.idName;
+            String idNum = data.idNum;
 
-            OcrResult ocr = submitIdImages(data.imgFront, data.imgBack);
-            String idName, idNum, idStart, idEnd;
+            log.info("[实名认证] 准备提交: idName={}, idNum={}, phone={}", idName, maskIdNum(idNum), LoginContext.getPhone());
 
-            if (ocr.isSuccess() && ocr.getIdNum() != null && !ocr.getIdNum().isEmpty()) {
-                // OCR 成功，使用 OCR 结果
-                idName = ocr.getIdName();
-                idNum = ocr.getIdNum();
-                idStart = ocr.getIdStart();
-                idEnd = ocr.getIdEnd();
-                log.info("[实名认证] OCR 成功: idName={}, idNum={}", idName, idNum);
-            } else {
-                // OCR 失败，使用数据池兜底
-                log.warn("[实名认证] OCR 失败(code={}), 使用数据池兜底: idName={}, idNum={}",
-                        ocr.getCode(), data.idName, data.idNum);
-                idName = data.idName;
-                idNum = data.idNum;
-                idStart = data.idStart;
-                idEnd = data.idEnd;
-                // 使用占位图片 URL（后端校验不严格时可用）
-                data.imgFront = "id_front.jpg";
-                data.imgBack = "id_back.jpg";
-            }
-
-            log.info("[实名认证] 准备提交: idName={}, idNum={}, idStart={}, idEnd={}, imgFront={}, imgBack={}",
-                    idName, idNum, idStart, idEnd, data.imgFront, data.imgBack);
-
-            RealNameResult result = submitRealName(
-                    idName, idNum,
-                    idStart, idEnd,
-                    data.imgFront, data.imgBack,
-                    data.urgentName, data.urgentContact, data.urgentRelation);
+            RealNameResult result = submitRealName(idName, idNum);
 
             if (result.isSuccess()) {
                 AVAILABLE_ID_POOL.remove(data);
@@ -138,27 +111,24 @@ public class RealNameModule {
         throw new RuntimeException("实名数据池所有条目均失败: " + (lastFailure != null ? lastFailure.getMessage() : "未知"));
     }
 
-    public static RealNameResult submitRealName(
-            String idName, String idNum,
-            String idStart, String idEnd,
-            String imgFront, String imgBack,
-            String urgentName, String urgentContact, int urgentRelation) {
+    /**
+     * 提交实名认证（临时简化版：只传姓名 + 身份证号）。
+     * 附件和紧急联系人字段暂时注释，后续恢复。
+     */
+    public static RealNameResult submitRealName(String idName, String idNum) {
         String url = Config.getBaseUrl() + REAL_NAME_PATH;
         String token = LoginContext.getToken();
 
         StringBuilder sb = new StringBuilder("{");
         appendJsonField(sb, "idName", idName, true);
         appendJsonField(sb, "idNum", idNum, false);
-        // 日期字段：Jackson LocalDate 支持 [yyyy,mm,dd] 数组格式
-        appendDateField(sb, "idStart", idStart);
-        appendDateField(sb, "idEnd", idEnd);
-        appendJsonField(sb, "imgFront", imgFront, false);
-        appendJsonField(sb, "imgBack", imgBack, false);
-        appendJsonField(sb, "urgentName", urgentName, false);
-        appendJsonField(sb, "urgentContact", urgentContact, false);
-        if (urgentRelation > 0) {
-            appendIntField(sb, "urgentRelation", urgentRelation);
-        }
+        // 临时调整：去掉日期、附件、紧急联系人
+        // appendDateField(sb, "idStart", "2021-09-30");
+        // appendDateField(sb, "idEnd", "2041-09-30");
+        // appendJsonField(sb, "imgFront", "", false);
+        // appendJsonField(sb, "imgBack", "", false);
+        // appendJsonField(sb, "urgentName", "", false);
+        // appendJsonField(sb, "urgentContact", "", false);
         sb.append("}");
 
         ApiResponse<JsonElement> resp = HttpClient.postJson(url, sb.toString(), token);
