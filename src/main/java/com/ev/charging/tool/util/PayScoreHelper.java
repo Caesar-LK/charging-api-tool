@@ -19,6 +19,7 @@ public class PayScoreHelper {
     private static final String SETTLE_PATH = "/debug/pay-score/settle";
     private static final String REFUND_PATH = "/debug/pay-score/refund";
     private static final String SYNC_PAID_STATUS_PATH = "/debug/pay-score/sync-paid-status";
+    private static final String MOCK_CALLBACK_PATH = "/mock/wxpayscore/callback";
 
     private PayScoreHelper() {
     }
@@ -97,6 +98,21 @@ public class PayScoreHelper {
             }
         }
         return cycles;
+    }
+
+    /**
+     * 调用微信支付分 mock 回调，模拟授权完成。
+     *
+     * @param cycleCode 支付分周期编码（charge_user_pay_score.cycle_code）
+     * @return 回调结果
+     */
+    public static ApiResponse<?> mockCallback(String cycleCode) {
+        String url = Config.getBaseUrl() + MOCK_CALLBACK_PATH
+                + "?billNo=" + cycleCode + "&billSource=5";
+        ApiResponse<?> resp = HttpClient.postJson(url, "{}", LoginContext.getToken());
+        log.info("[支付分-mock] cycleCode={}, code={}, message={}",
+                cycleCode, resp.getCode(), resp.getMessage());
+        return resp;
     }
 
     /** 校验指定用户的当前周期是否已授权。 */

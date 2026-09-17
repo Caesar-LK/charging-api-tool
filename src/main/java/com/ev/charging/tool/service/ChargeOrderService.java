@@ -3,6 +3,7 @@ package com.ev.charging.tool.service;
 import com.ev.charging.tool.util.LoginContext;
 import com.ev.charging.tool.util.PayScoreHelper;
 import com.ev.charging.tool.util.PayScoreHelper.AuthorizedUser;
+import com.ev.charging.tool.util.PayScoreHelper.PayScoreCycle;
 import com.ev.charging.tool.util.TestAccountFactory;
 import com.ev.charging.tool.util.TestAccountFactory.TestAccount;
 import com.ev.charging.tool.util.TestData;
@@ -103,15 +104,28 @@ public class ChargeOrderService {
                 throw new RuntimeException("无法获取实名姓名");
             }
 
-            // 3. 预置支付分授权周期
+            // 3. 获取 userId
             Integer userIdObj = ChargeUserModule.getMyInfo().getUserId();
             if (userIdObj == null) {
                 throw new RuntimeException("无法获取用户 ID，该账号可能未注册为充电用户");
             }
             int userId = userIdObj;
-            var cycle = PayScoreHelper.prepareAuthorizedCycle(userId);
 
-            // 4. 加车
+            // 4. 创建支付分周期 → mock 回调授权 → 保留 debug 快捷方式
+            // 4a. 通过 debug 端点创建"已授权"周期（同时创建周期 + 一步授权）
+            var cycle = PayScoreHelper.prepareAuthorizedCycle(userId);
+            // 4b. 调 mock 回调验证（用周期 cycle_code 触发微信回调模拟）
+            if (cycle.cycleCode != null && !cycle.cycleCode.isEmpty()) {
+                try {
+                    var callbackResp = PayScoreHelper.mockCallback(cycle.cycleCode);
+                    log.info("[充电订单] mock回调验证: cycleCode={}, code={}",
+                            cycle.cycleCode, callbackResp.getCode());
+                } catch (Exception e) {
+                    log.warn("[充电订单] mock回调异常（不影响主流程）: {}", e.getMessage());
+                }
+            }
+
+            // 5. 加车
             VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
             vehicleData.setName(idName);
             var saved = VehicleModule.saveVehicle(vehicleData);
@@ -127,7 +141,7 @@ public class ChargeOrderService {
             // 5. 解析二维码 → connectorId
             long connectorId = resolveConnectorId(qrCode);
 
-            // 6. 发起充电
+            // 7. 发起充电
             StartChargingResult charged = null;
             String lastError = null;
             for (long cid : new long[]{connectorId}) {
@@ -155,13 +169,19 @@ public class ChargeOrderService {
                 throw new RuntimeException("发起充电失败: " + lastError);
             }
 
-            // 7. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
+            // 8. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
             Map<String, Object> data = new HashMap<>();
             data.put("phone", account.getPhone());
             data.put("idName", idName != null ? idName : "");
             data.put("idNum", idNum != null ? idNum : "");
             data.put("userId", userId);
-            data.put("cycleId", cycle.id);
+            // 查询最新的 cycleCode 返回给前端
+            String finalCycleCode = null;
+            try {
+                PayScoreCycle c = PayScoreHelper.getLatestCycle(userId);
+                if (c != null) finalCycleCode = c.cycleCode;
+            } catch (Exception ignored) {}
+            data.put("cycleCode", finalCycleCode != null ? finalCycleCode : "");
             data.put("vehicleId", vehicleId);
             data.put("plateNumber", plateNumber != null ? plateNumber : "");
             data.put("connectorId", charged.getOrderId());
