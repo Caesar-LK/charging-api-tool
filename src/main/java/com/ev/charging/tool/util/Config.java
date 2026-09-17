@@ -76,6 +76,44 @@ public class Config {
         return obsSignPath;
     }
 
+    // ===== 充电订单 =====
+
+    public static String getOrderStartPath() {
+        return "/charge-order/start-charging";
+    }
+
+    public static String getOrderStopPath() {
+        return "/charge-order/stop-charging";
+    }
+
+    public static String getOrderQueryChargingPath() {
+        return "/charge-order/query-charging";
+    }
+
+    public static String getOrderQueryResultPath() {
+        return "/charge-order/query-charge-result";
+    }
+
+    public static String getOrderQueryMyPath() {
+        return "/charge-order/query-my-order";
+    }
+
+    // ===== 设备 =====
+
+    public static String getQrcodeParsePath() {
+        return "/chargeEquipment/parseQrcode";
+    }
+
+    public static String getSelectByConnectorIdPath() {
+        return "/chargeEquipment/selectByConnectorId";
+    }
+
+    // ===== 用户 =====
+
+    public static String getChargeUserMyInfoPath() {
+        return "/chargeUser/my-info";
+    }
+
     public static String getObsBucket() {
         return "jy-charge";
     }

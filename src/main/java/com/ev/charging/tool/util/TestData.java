@@ -25,4 +25,16 @@ public final class TestData {
 
     // ===== 业务码 =====
     public static final String CODE_SUCCESS = "200";
+
+    // ===== 定位 =====
+    /**
+     * 用户定位的六位行政区划码（320115 南京市江宁区）。
+     * 发起充电时后端会校验用户定位与充电桩城市是否一致，不一致报 4100004。
+     * 可通过 -DareaCode=xxx 覆盖。
+     */
+    public static final String AREA_CODE = "320115";
+
+    // ===== 时间常量（毫秒）=====
+    public static final long CHARGE_START_WAIT_MS = 135_000;
+    public static final long RETRY_INTERVAL_MS = 10_000;
 }

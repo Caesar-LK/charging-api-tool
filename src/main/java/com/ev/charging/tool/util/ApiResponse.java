@@ -15,6 +15,14 @@ public class ApiResponse<T> {
     private T data;
     private String rawBody;
 
+    public int getHttpStatus() {
+        return httpStatus;
+    }
+
+    public void setHttpStatus(int httpStatus) {
+        this.httpStatus = httpStatus;
+    }
+
     public boolean isSuccess() {
         return "200".equals(code);
     }
