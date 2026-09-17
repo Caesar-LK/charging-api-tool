@@ -133,7 +133,7 @@ public class Config {
     // ===== 测试数据 =====
 
     public static int getTestIdCardCount() {
-        return 25;
+        return testIdCards.length;
     }
 
     public static String getTestIdNum(int index) {
@@ -199,5 +199,6 @@ public class Config {
         {"330102199102022345", "林小红", "id_front.jpg", "id_back.jpg", "林急人", "13900000023"},
         {"510103199203033456", "王建国", "id_front.jpg", "id_back.jpg", "王急人", "13900000024"},
         {"420104199304044567", "李秀英", "id_front.jpg", "id_back.jpg", "李急人", "13900000025"},
+        {"320483199306137412", "王杰", "id_front.jpg", "id_back.jpg", "王急人", "13900000026"},
     };
 }
