@@ -56,7 +56,9 @@ public class OrderModule {
         log.info("[开始充电] connectorId={}, vehicleId={}, plateNumber={}", connectorId, vehicleId, plateNumber);
 
         ApiResponse<JsonElement> resp = HttpClient.postJson(url, body.toString(), token);
-        log.info("[开始充电] httpStatus={}, code={}, message={}", resp.getHttpStatus(), resp.getCode(), resp.getMessage());
+        log.info("[开始充电] httpStatus={}, code={}, message={}, rawBody前300={}",
+                resp.getHttpStatus(), resp.getCode(), resp.getMessage(),
+                resp.getRawBody() != null ? resp.getRawBody().substring(0, Math.min(300, resp.getRawBody().length())) : "null");
 
         StartChargingResult result = new StartChargingResult();
         result.setCode(resp.getCode());
