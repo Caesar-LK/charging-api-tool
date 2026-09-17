@@ -14,7 +14,11 @@ import com.ev.charging.tool.util.order.OrderModule;
 import com.ev.charging.tool.util.order.OrderModule.StartChargingResult;
 import com.ev.charging.tool.util.order.OrderModule.StopChargingResult;
 import com.ev.charging.tool.util.realname.RealNameModule;
+import com.ev.charging.tool.util.login.LoginModule;
 import com.ev.charging.tool.util.realname.RealNameModule.RealNameSubmitResult;
+import com.ev.charging.tool.util.realname.RealNameInfoModule;
+import com.ev.charging.tool.util.realname.RealNameInfoResult;
+import com.ev.charging.tool.util.user.ChargeUserModule;
 import com.ev.charging.tool.util.vehicle.VehicleModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,35 +43,77 @@ public class ChargeOrderService {
     /**
      * 创建充电订单（完整流程）。
      *
+     * @param phone       手机号（必填）：传入已有手机号则登录该账号；传空则自动创建新账号
      * @param qrCode      二维码（可选，不传则用内置备选）
      * @param areaCode    定位区划码（可选，默认 320115）
      * @return 订单信息
      */
-    public Map<String, Object> createOrder(String qrCode, String areaCode) {
+    public Map<String, Object> createOrder(String phone, String qrCode, String areaCode) {
         if (areaCode == null || areaCode.isEmpty()) {
             areaCode = TestData.AREA_CODE;
         }
 
         try {
-            // 1. 建号登录
-            TestAccount account = TestAccountFactory.createAndLogin();
+            // 1. 登录（传入手机号用该账号，否则创建新账号）
+            TestAccount account;
+            if (phone != null && !phone.trim().isEmpty()) {
+                phone = phone.trim();
+                var loginResult = LoginModule.login(phone);
+                if (!loginResult.isSuccess()) {
+                    throw new RuntimeException("手机号登录失败: " + loginResult.getMessage());
+                }
+                account = TestAccountFactory.withToken(phone, loginResult.getToken());
+                log.info("[充电订单] 使用指定手机号登录: {}", phone);
+            } else {
+                account = TestAccountFactory.createAndLogin();
+                log.info("[充电订单] 创建新账号: {}", account.getPhone());
+            }
             if (account.getToken() == null) {
                 throw new RuntimeException("登录失败");
             }
 
-            // 2. 实名
-            RealNameSubmitResult realName = RealNameModule.submitRealNameUnique();
-            if (!"200".equals(realName.getCode())) {
-                throw new RuntimeException("实名认证失败: " + realName.getMessage());
+            // 2. 检查实名认证状态，未实名则执行实名
+            String idName = "";
+            String idNum = "";
+            try {
+                var realNameInfo = RealNameInfoModule.getRealNameInfo();
+                if ("200".equals(realNameInfo.getCode()) && realNameInfo.getIdName() != null
+                        && !realNameInfo.getIdName().isEmpty()) {
+                    // 已实名，使用已有实名信息
+                    idName = realNameInfo.getIdName();
+                    idNum = realNameInfo.getIdNum();
+                    log.info("[充电订单] 账号已实名: idName={}, idNum={}", idName, idNum);
+                }
+            } catch (Exception e) {
+                log.warn("[充电订单] 查询实名信息失败: {}", e.getMessage());
+            }
+
+            if (idName.isEmpty()) {
+                // 未实名，执行实名
+                RealNameSubmitResult realName = RealNameModule.submitRealNameUnique();
+                if (!"200".equals(realName.getCode())) {
+                    throw new RuntimeException("实名认证失败: " + realName.getMessage());
+                }
+                idName = realName.getIdName();
+                idNum = realName.getIdNum();
+                log.info("[充电订单] 实名完成: idName={}, idNum={}", idName, idNum);
+            }
+
+            if (idName == null || idName.isEmpty()) {
+                throw new RuntimeException("无法获取实名姓名");
             }
 
             // 3. 预置支付分授权周期
-            int userId = com.ev.charging.tool.util.user.ChargeUserModule.getMyInfo().getUserId();
+            Integer userIdObj = ChargeUserModule.getMyInfo().getUserId();
+            if (userIdObj == null) {
+                throw new RuntimeException("无法获取用户 ID，该账号可能未注册为充电用户");
+            }
+            int userId = userIdObj;
             var cycle = PayScoreHelper.prepareAuthorizedCycle(userId);
 
             // 4. 加车
             VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
-            vehicleData.setName(realName.getIdName());
+            vehicleData.setName(idName);
             var saved = VehicleModule.saveVehicle(vehicleData);
             if (!"200".equals(saved.getCode())) {
                 throw new RuntimeException("添加车辆失败: " + saved.getMessage());
@@ -109,24 +155,30 @@ public class ChargeOrderService {
                 throw new RuntimeException("发起充电失败: " + lastError);
             }
 
-            // 7. 返回订单信息
+            // 7. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
             Map<String, Object> data = new HashMap<>();
             data.put("phone", account.getPhone());
-            data.put("idName", realName.getIdName());
-            data.put("idNum", realName.getIdNum());
+            data.put("idName", idName != null ? idName : "");
+            data.put("idNum", idNum != null ? idNum : "");
             data.put("userId", userId);
             data.put("cycleId", cycle.id);
             data.put("vehicleId", vehicleId);
-            data.put("plateNumber", plateNumber);
+            data.put("plateNumber", plateNumber != null ? plateNumber : "");
             data.put("connectorId", charged.getOrderId());
             data.put("orderId", charged.getOrderId());
             data.put("orderNo", charged.getOrderNo());
             data.put("orderStatus", charged.getOrderStatus());
 
-            return Map.of("success", true, "data", data);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("data", data);
+            return result;
         } catch (Exception e) {
             log.error("[充电订单] 失败: {}", e.getMessage(), e);
-            return Map.of("success", false, "error", e.getMessage());
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            return result;
         } finally {
             LoginContext.clear();
         }

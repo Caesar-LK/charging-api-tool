@@ -34,6 +34,14 @@ public class TestAccountFactory {
         return PHONE_PREFIX + String.format("%08d", seq);
     }
 
+    /** 用已有 token 构造账号（跳过短信验证）。 */
+    public static TestAccount withToken(String phone, String token) {
+        TestAccount acc = new TestAccount(phone, null);
+        acc.token = token;
+        acc.isRegistered = true;
+        return acc;
+    }
+
     public static class TestAccount {
         private final String phone;
         private final String smsCode;
