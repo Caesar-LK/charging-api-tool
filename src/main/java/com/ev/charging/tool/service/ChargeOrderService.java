@@ -111,7 +111,10 @@ public class ChargeOrderService {
             }
             int userId = userIdObj;
 
-            // 4. 加车
+            // 4. 支付分授权（create-order → mock 回调）
+            String cycleCode = createAndAuthorizePayScore();
+
+            // 5. 加车
             VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
             vehicleData.setName(idName);
             var saved = VehicleModule.saveVehicle(vehicleData);
@@ -124,10 +127,10 @@ public class ChargeOrderService {
             String plateNumber = firstVehicle.has("plateNumber")
                     ? firstVehicle.get("plateNumber").getAsString() : "";
 
-            // 5. 解析二维码 → connectorId
+            // 6. 解析二维码 → connectorId
             long connectorId = resolveConnectorId(qrCode);
 
-            // 6. 发起充电
+            // 7. 发起充电
             StartChargingResult charged = null;
             String lastError = null;
             for (long cid : new long[]{connectorId}) {
@@ -136,21 +139,6 @@ public class ChargeOrderService {
                 if ("200".equals(attempt.getCode())) {
                     charged = attempt;
                     break;
-                }
-                // 6001004 = 不存在已授权的支付分周期 → 从 charge_user_pay_score 表取 cycle_code，
-                // 调 mock 回调完成授权，然后重试
-                if (attempt.getCode() != null && attempt.getCode().contains("6001004")) {
-                    log.info("[充电订单] 需要支付分授权，从周期表获取 cycleCode 并调 mock 回调");
-                    String cycleCode = triggerPayScoreAuthorization(userId);
-                    if (cycleCode != null) {
-                        // 授权成功后重试
-                        attempt = OrderModule.startCharging(
-                                cid, vehicleId, 1, plateNumber, false, qrCode, areaCode);
-                        if ("200".equals(attempt.getCode())) {
-                            charged = attempt;
-                            break;
-                        }
-                    }
                 }
                 lastError = attempt.getCode() + " " + attempt.getMessage();
                 // 尝试备选枪口
@@ -170,19 +158,13 @@ public class ChargeOrderService {
                 throw new RuntimeException("发起充电失败: " + lastError);
             }
 
-            // 8. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
+            // 9. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
             Map<String, Object> data = new HashMap<>();
             data.put("phone", account.getPhone());
             data.put("idName", idName != null ? idName : "");
             data.put("idNum", idNum != null ? idNum : "");
             data.put("userId", userId);
-            // 查询最新的 cycleCode 返回给前端
-            String finalCycleCode = null;
-            try {
-                PayScoreCycle c = PayScoreHelper.getLatestCycle(userId);
-                if (c != null) finalCycleCode = c.cycleCode;
-            } catch (Exception ignored) {}
-            data.put("cycleCode", finalCycleCode != null ? finalCycleCode : "");
+            data.put("cycleCode", cycleCode != null ? cycleCode : "");
             data.put("vehicleId", vehicleId);
             data.put("plateNumber", plateNumber != null ? plateNumber : "");
             data.put("connectorId", charged.getOrderId());
@@ -222,31 +204,57 @@ public class ChargeOrderService {
     }
 
     /**
-     * 从 charge_user_pay_score 表获取最新 cycle_code，调 mock 回调完成授权。
+     * 创建支付分订单并完成授权。
+     * 流程：create-order → 查 cycle_code → mock 回调。
      *
-     * @return cycleCode（授权成功时返回）；null 表示无可用周期
+     * @return cycleCode（授权成功时返回）；null 表示失败
      */
-    private String triggerPayScoreAuthorization(int userId) {
+    private String createAndAuthorizePayScore() {
         try {
-            // 查询用户的支付分周期列表，取最新一条
-            PayScoreCycle latestCycle = PayScoreHelper.getLatestCycle(userId);
-            if (latestCycle == null || latestCycle.cycleCode == null
-                    || latestCycle.cycleCode.isEmpty()) {
-                log.warn("[充电订单] 周期表无数据，无法授权: userId={}", userId);
+            // Step 1: 创建支付分订单（拉起授权弹窗）
+            var orderResult = com.ev.charging.tool.util.payscore.PayScoreModule.createOrder(
+                    null, null, null);
+            if (!orderResult.isSuccess()) {
+                log.warn("[充电订单] 创建支付分订单失败: {}", orderResult.getMessage());
                 return null;
             }
-            String cycleCode = latestCycle.cycleCode;
-            // 调 mock 回调：POST /mock/wxpayscore/callback?billNo=<cycle_code>&billSource=5
-            var callbackResp = PayScoreHelper.mockCallback(cycleCode);
-            if ("200".equals(callbackResp.getCode())) {
+            log.info("[充电订单] 创建支付分订单成功: outOrderNo={}, state={}",
+                    orderResult.getOutOrderNo(), orderResult.getState());
+
+            // Step 2: 查询周期获取 cycle_code
+            String cycleCode = null;
+            if (orderResult.getOutOrderNo() != null) {
+                // 轮询查询周期（最多 3 次，每次间隔 2 秒）
+                for (int i = 0; i < 3; i++) {
+                    var cycles = PayScoreHelper.getCycles(
+                            com.ev.charging.tool.util.user.ChargeUserModule.getMyInfo().getUserId());
+                    if (!cycles.isEmpty()) {
+                        var latest = cycles.get(cycles.size() - 1);
+                        if (latest.cycleCode != null && !latest.cycleCode.isEmpty()) {
+                            cycleCode = latest.cycleCode;
+                            break;
+                        }
+                    }
+                    log.info("[充电订单] 等待 cycle_code... {}/3", i + 1);
+                    try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                }
+            }
+
+            if (cycleCode == null || cycleCode.isEmpty()) {
+                log.warn("[充电订单] 无法获取 cycleCode");
+                return null;
+            }
+
+            // Step 3: 调 mock 回调完成授权
+            boolean authorized = com.ev.charging.tool.util.payscore.PayScoreModule.mockCallback(cycleCode);
+            if (authorized) {
                 log.info("[充电订单] 支付分授权成功: cycleCode={}", cycleCode);
                 return cycleCode;
             }
-            log.warn("[充电订单] 支付分授权失败: code={}, message={}",
-                    callbackResp.getCode(), callbackResp.getMessage());
+            log.warn("[充电订单] 支付分授权失败: cycleCode={}", cycleCode);
             return null;
         } catch (Exception e) {
-            log.warn("[充电订单] 支付分授权异常: {}", e.getMessage());
+            log.warn("[充电订单] 支付分授权异常: {}", e.getMessage(), e);
             return null;
         }
     }
