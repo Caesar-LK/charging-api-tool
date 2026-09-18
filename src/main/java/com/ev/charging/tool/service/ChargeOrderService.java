@@ -173,7 +173,12 @@ public class ChargeOrderService {
                 throw new RuntimeException("发起充电失败: " + lastError);
             }
 
-            // 9. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
+            log.info("[充电订单] 充电已发起: orderNo={}, 等待 2 分钟后自动停止", charged.getOrderNo());
+
+            // 9. 等待 2 分钟后自动停止充电
+            StopChargingResult stopped = autoStopCharged(charged.getOrderNo());
+
+            // 10. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
             Map<String, Object> data = new HashMap<>();
             data.put("phone", account.getPhone());
             data.put("idName", idName != null ? idName : "");
@@ -185,7 +190,9 @@ public class ChargeOrderService {
             data.put("connectorId", charged.getOrderId());
             data.put("orderId", charged.getOrderId());
             data.put("orderNo", charged.getOrderNo());
-            data.put("orderStatus", charged.getOrderStatus());
+            data.put("orderStatus", stopped != null ? stopped.getOrderStatus() : charged.getOrderStatus());
+            data.put("stopCode", stopped != null ? stopped.getCode() : "");
+            data.put("stopMessage", stopped != null ? stopped.getMessage() : "");
 
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
@@ -199,6 +206,30 @@ public class ChargeOrderService {
             return result;
         } finally {
             LoginContext.clear();
+        }
+    }
+
+    /**
+     * 等待 2 分钟后自动停止充电。
+     *
+     * @param orderNo 订单号
+     * @return 停止结果（失败返回 null）
+     */
+    private StopChargingResult autoStopCharged(String orderNo) {
+        try {
+            log.info("[充电订单] 等待 120 秒后停止充电: orderNo={}", orderNo);
+            Thread.sleep(120_000);
+            StopChargingResult stopResult = OrderModule.stopCharging(orderNo);
+            log.info("[充电订单] 自动停止结果: code={}, message={}, orderStatus={}",
+                    stopResult.getCode(), stopResult.getMessage(), stopResult.getOrderStatus());
+            return stopResult;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("[充电订单] 等待被中断: orderNo={}", orderNo);
+            return null;
+        } catch (Exception e) {
+            log.warn("[充电订单] 自动停止失败: {}", e.getMessage());
+            return null;
         }
     }
 
