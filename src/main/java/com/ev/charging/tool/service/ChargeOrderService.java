@@ -36,10 +36,10 @@ import java.util.Map;
 public class ChargeOrderService {
 
     private static final String[] FALLBACK_QR_CODES = {
-            "hlht://3702030162102.395815801/",
-            "hlht://3702030162101.395815801/",
-            "?connectorId=450",
-            "?connectorId=451",
+            "hlht://3702030162102.395815801/",   // 特来电场站（有价格）
+            "hlht://3702030162101.395815801/",   // 特来电场站（有价格）
+            "?connectorId=1721",      // 并充测试电站 stationId=148, 单价 2.0 元/度
+            "?connectorId=1722",      // 并充测试电站 stationId=148, 单价 2.0 元/度
     };
 
 
