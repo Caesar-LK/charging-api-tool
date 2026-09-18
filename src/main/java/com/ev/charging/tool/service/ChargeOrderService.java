@@ -111,10 +111,7 @@ public class ChargeOrderService {
             }
             int userId = userIdObj;
 
-            // 4. 支付分授权（create-order → mock 回调）
-            String cycleCode = createAndAuthorizePayScore();
-
-            // 5. 加车
+            // 4. 加车（先有车，再创建支付分周期）
             VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
             vehicleData.setName(idName);
             var saved = VehicleModule.saveVehicle(vehicleData);
@@ -126,6 +123,11 @@ public class ChargeOrderService {
             long vehicleId = firstVehicle.get("vehicleId").getAsLong();
             String plateNumber = firstVehicle.has("plateNumber")
                     ? firstVehicle.get("plateNumber").getAsString() : "";
+
+            log.info("[充电订单] Step 4 加车完成: vehicleId={}, plate={}", vehicleId, plateNumber);
+
+            // 5. 支付分授权（创建周期 → mock 回调）
+            String cycleCode = createAndAuthorizePayScore();
 
             // 6. 解析二维码 → connectorId
             long connectorId = resolveConnectorId(qrCode);
