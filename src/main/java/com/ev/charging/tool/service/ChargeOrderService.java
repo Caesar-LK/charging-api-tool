@@ -16,6 +16,7 @@ import com.ev.charging.tool.util.order.OrderModule.StartChargingResult;
 import com.ev.charging.tool.util.order.OrderModule.StopChargingResult;
 import com.ev.charging.tool.util.realname.RealNameModule;
 import com.ev.charging.tool.util.login.LoginModule;
+import com.ev.charging.tool.util.login.LoginResult;
 import com.ev.charging.tool.util.realname.RealNameModule.RealNameSubmitResult;
 import com.ev.charging.tool.util.realname.RealNameInfoModule;
 import com.ev.charging.tool.util.realname.RealNameInfoResult;
@@ -40,6 +41,9 @@ public class ChargeOrderService {
             "?connectorId=450",
             "?connectorId=451",
     };
+
+    /** orderNo → phone 映射，供 stopCharging 恢复登录态 */
+    private static final Map<String, String> ORDER_PHONE_MAP = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * 创建充电订单（完整流程）。
@@ -173,12 +177,12 @@ public class ChargeOrderService {
                 throw new RuntimeException("发起充电失败: " + lastError);
             }
 
-            log.info("[充电订单] 充电已发起: orderNo={}, 等待 2 分钟后自动停止", charged.getOrderNo());
+            log.info("[充电订单] 充电已发起: orderNo={}", charged.getOrderNo());
 
-            // 9. 等待 2 分钟后自动停止充电
-            StopChargingResult stopped = autoStopCharged(charged.getOrderNo());
+            // 存储 orderNo → phone 映射，供 stopCharging 恢复登录态
+            ORDER_PHONE_MAP.put(charged.getOrderNo(), account.getPhone());
 
-            // 10. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
+            // 9. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
             Map<String, Object> data = new HashMap<>();
             data.put("phone", account.getPhone());
             data.put("idName", idName != null ? idName : "");
@@ -190,9 +194,7 @@ public class ChargeOrderService {
             data.put("connectorId", charged.getOrderId());
             data.put("orderId", charged.getOrderId());
             data.put("orderNo", charged.getOrderNo());
-            data.put("orderStatus", stopped != null ? stopped.getOrderStatus() : charged.getOrderStatus());
-            data.put("stopCode", stopped != null ? stopped.getCode() : "");
-            data.put("stopMessage", stopped != null ? stopped.getMessage() : "");
+            data.put("orderStatus", charged.getOrderStatus());
 
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
@@ -210,26 +212,49 @@ public class ChargeOrderService {
     }
 
     /**
-     * 等待 2 分钟后自动停止充电。
+     * 停止充电（单独接口调用）。
      *
      * @param orderNo 订单号
-     * @return 停止结果（失败返回 null）
+     * @return 停止结果
      */
-    private StopChargingResult autoStopCharged(String orderNo) {
+    public Map<String, Object> stopCharging(String orderNo) {
         try {
-            log.info("[充电订单] 等待 120 秒后停止充电: orderNo={}", orderNo);
-            Thread.sleep(120_000);
+            // 从映射中取手机号并恢复登录态
+            String phone = ORDER_PHONE_MAP.get(orderNo);
+            if (phone != null) {
+                LoginResult loginResult = LoginModule.login(phone);
+                if (!loginResult.isSuccess()) {
+                    throw new RuntimeException("登录失败: " + loginResult.getMessage());
+                }
+                log.info("[停止充电] 已恢复登录态: phone={}", phone);
+            }
+
             StopChargingResult stopResult = OrderModule.stopCharging(orderNo);
-            log.info("[充电订单] 自动停止结果: code={}, message={}, orderStatus={}",
-                    stopResult.getCode(), stopResult.getMessage(), stopResult.getOrderStatus());
-            return stopResult;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("[充电订单] 等待被中断: orderNo={}", orderNo);
-            return null;
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("orderNo", orderNo);
+            data.put("orderStatus", stopResult.getOrderStatus());
+            data.put("code", stopResult.getCode());
+            data.put("message", stopResult.getMessage());
+
+            // 清理映射
+            ORDER_PHONE_MAP.remove(orderNo);
+
+            Map<String, Object> result = new HashMap<>();
+            if ("200".equals(stopResult.getCode())) {
+                result.put("success", true);
+                result.put("data", data);
+            } else {
+                result.put("success", false);
+                result.put("error", stopResult.getMessage());
+            }
+            return result;
         } catch (Exception e) {
-            log.warn("[充电订单] 自动停止失败: {}", e.getMessage());
-            return null;
+            log.error("[停止充电] 失败: orderNo={}, error={}", orderNo, e.getMessage(), e);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            return result;
         }
     }
 
