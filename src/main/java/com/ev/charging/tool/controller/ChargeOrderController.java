@@ -44,27 +44,4 @@ public class ChargeOrderController {
         }
     }
 
-    /**
-     * 停止充电。
-     *
-     * @param request { "orderNo": "订单号（必填）" }
-     * @return 停止结果
-     */
-    @PostMapping("/charge-order/stop-charging")
-    public ResponseEntity<Map<String, Object>> stopCharging(@RequestBody Map<String, Object> request) {
-        String orderNo = (String) request.get("orderNo");
-        log.info("[API] POST /api/charge-order/stop-charging, orderNo={}", orderNo);
-
-        if (orderNo == null || orderNo.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "orderNo 不能为空"));
-        }
-
-        Map<String, Object> result = chargeOrderService.stopCharging(orderNo);
-
-        if (Boolean.TRUE.equals(result.get("success"))) {
-            return ResponseEntity.ok(result);
-        } else {
-            return ResponseEntity.badRequest().body(result);
-        }
-    }
 }
