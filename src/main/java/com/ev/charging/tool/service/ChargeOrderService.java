@@ -20,6 +20,7 @@ import com.ev.charging.tool.util.login.LoginResult;
 import com.ev.charging.tool.util.realname.RealNameModule.RealNameSubmitResult;
 import com.ev.charging.tool.util.realname.RealNameInfoModule;
 import com.ev.charging.tool.util.realname.RealNameInfoResult;
+import com.ev.charging.tool.util.payscore.PayScoreModule;
 import com.ev.charging.tool.util.user.ChargeUserModule;
 import com.ev.charging.tool.util.vehicle.VehicleModule;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +54,7 @@ public class ChargeOrderService {
      * @param areaCode    定位区划码（可选，默认 320115）
      * @return 订单信息
      */
-    public Map<String, Object> createOrder(String phone, String qrCode, String areaCode) {
+    public Map<String, Object> createOrder(String phone, String code, String qrCode, String areaCode) {
         if (areaCode == null || areaCode.isEmpty()) {
             areaCode = TestData.AREA_CODE;
         }
@@ -144,7 +145,7 @@ public class ChargeOrderService {
             }
 
             // 5. 支付分授权（创建周期 → mock 回调）
-            String cycleCode = createAndAuthorizePayScore();
+            String cycleCode = createAndAuthorizePayScore(account.getPhone(), code);
 
             // 6. 解析二维码 → connectorId
             long connectorId = resolveConnectorId(qrCode);
@@ -281,11 +282,18 @@ public class ChargeOrderService {
      *
      * @return cycleCode（授权成功时返回）；null 表示失败
      */
-    private String createAndAuthorizePayScore() {
+    /**
+     * 创建支付分订单并完成授权。
+     * 流程：create-order → 查 cycle_code → mock 回调。
+     *
+     * @return cycleCode（授权成功时返回）；null 表示失败
+     */
+    private String createAndAuthorizePayScore(String phone, String code) {
         try {
             int userId = com.ev.charging.tool.util.user.ChargeUserModule.getMyInfo().getUserId();
 
-            // Step 1: 通过 debug 端点创建"已授权"周期（测试环境绕过 openId 校验）
+            // 测试环境：使用 debug 端点直接创建已授权周期
+            // 真实环境需要：setPhone → create-order(微信code) → 查cycle_code → mockCallback
             PayScoreCycle cycle = PayScoreHelper.prepareAuthorizedCycle(userId);
             if (cycle == null) {
                 log.warn("[充电订单] 创建支付分周期失败");
@@ -294,14 +302,13 @@ public class ChargeOrderService {
             log.info("[充电订单] 创建支付分周期成功: cycleId={}, cycleCode={}",
                     cycle.id, cycle.cycleCode);
 
-            // Step 2: 调 mock 回调完成授权验证
-            String cycleCode = cycle.cycleCode;
-            if (cycleCode != null && !cycleCode.isEmpty()) {
-                boolean authorized = com.ev.charging.tool.util.payscore.PayScoreModule.mockCallback(cycleCode);
-                log.info("[充电订单] mock 回调: cycleCode={}, authorized={}", cycleCode, authorized);
+            // 调 mock 回调验证授权流程
+            if (cycle.cycleCode != null && !cycle.cycleCode.isEmpty()) {
+                boolean authorized = com.ev.charging.tool.util.payscore.PayScoreModule.mockCallback(cycle.cycleCode);
+                log.info("[充电订单] mock 回调验证: cycleCode={}, authorized={}", cycle.cycleCode, authorized);
             }
 
-            return cycleCode;
+            return cycle.cycleCode;
         } catch (Exception e) {
             log.warn("[充电订单] 支付分授权异常: {}", e.getMessage(), e);
             return null;

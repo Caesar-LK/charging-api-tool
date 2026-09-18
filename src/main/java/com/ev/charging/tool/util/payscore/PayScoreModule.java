@@ -18,15 +18,27 @@ public class PayScoreModule {
 
     private static final String CREATE_ORDER_PATH = "/chargeUser/pay-score/create-order";
     private static final String MOCK_CALLBACK_PATH = "/mock/wxpayscore/callback";
+    private static final String SET_PHONE_PATH = "/debug/mock/wechat/setPhone";
 
     private PayScoreModule() {
+    }
+
+    /**
+     * 设置微信 mock 手机号。
+     * GET /debug/mock/wechat/setPhone?phone=xxx&minutes=2
+     */
+    public static ApiResponse<?> setPhone(String phone) {
+        String url = Config.getBaseUrl() + SET_PHONE_PATH + "?phone=" + phone + "&minutes=2";
+        ApiResponse<?> resp = HttpClient.getJson(url, LoginContext.getToken());
+        log.info("[支付分] setPhone: phone={}, httpStatus={}", phone, resp.getHttpStatus());
+        return resp;
     }
 
     /**
      * 创建支付分订单（拉起授权弹窗）。
      * POST /chargeUser/pay-score/create-order
      *
-     * @param code     微信 code（测试环境可为空）
+     * @param code     微信 code（测试环境传空字符串）
      * @param deviceId 充电桩设备 SN（可选）
      * @param location 服务地点（可选）
      * @return 订单信息（含 outOrderNo）
@@ -36,7 +48,7 @@ public class PayScoreModule {
         String token = LoginContext.getToken();
 
         JsonObject body = new JsonObject();
-        if (code != null) body.addProperty("code", code);
+        body.addProperty("code", code != null ? code : "");
         if (deviceId != null) body.addProperty("deviceId", deviceId);
         if (location != null) body.addProperty("location", location);
 

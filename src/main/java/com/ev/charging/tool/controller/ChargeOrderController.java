@@ -24,17 +24,18 @@ public class ChargeOrderController {
      * 流程：建号→实名→加车→创建支付分周期→授权→发起充电
      * 立即返回订单信息（充电中状态）。
      *
-     * @param request { "phone": "可选", "qrCode": "可选", "areaCode": "可选，默认320115" }
+     * @param request { "phone": "可选", "code": "微信code（必填）", "qrCode": "可选", "areaCode": "可选，默认320115" }
      * @return 订单信息
      */
     @PostMapping("/charge-order")
     public ResponseEntity<Map<String, Object>> createOrder(@RequestBody Map<String, Object> request) {
         String phone = (String) request.get("phone");
+        String code = (String) request.get("code");
         String qrCode = (String) request.get("qrCode");
         String areaCode = (String) request.get("areaCode");
-        log.info("[API] POST /api/charge-order, phone={}, qrCode={}, areaCode={}", phone, qrCode, areaCode);
+        log.info("[API] POST /api/charge-order, phone={}, code={}, qrCode={}, areaCode={}", phone, code != null ? "已传" : "未传", qrCode, areaCode);
 
-        Map<String, Object> result = chargeOrderService.createOrder(phone, qrCode, areaCode);
+        Map<String, Object> result = chargeOrderService.createOrder(phone, code, qrCode, areaCode);
 
         if (Boolean.TRUE.equals(result.get("success"))) {
             return ResponseEntity.ok(result);
