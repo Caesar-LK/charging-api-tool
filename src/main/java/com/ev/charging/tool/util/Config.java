@@ -130,34 +130,34 @@ public class Config {
         return "/home/ubuntu/charging-api-test/scripts/id_card_generator/output";
     }
 
-    // ===== 测试数据 =====
+    // ===== 测试数据（已废弃：实名认证改为随机生成，不再依赖固定数据池） =====
 
     public static int getTestIdCardCount() {
-        return testIdCards.length;
+        return 0; // 已废弃
     }
 
     public static String getTestIdNum(int index) {
-        return testIdCards[index - 1][0];
+        return null; // 已废弃
     }
 
     public static String getTestIdName(int index) {
-        return testIdCards[index - 1][1];
+        return null; // 已废弃
     }
 
     public static String getTestIdImgFront(int index) {
-        return testIdCards[index - 1][2];
+        return null; // 已废弃
     }
 
     public static String getTestIdImgBack(int index) {
-        return testIdCards[index - 1][3];
+        return null; // 已废弃
     }
 
     public static String getTestIdUrgentName(int index) {
-        return testIdCards[index - 1][4];
+        return null; // 已废弃
     }
 
     public static String getTestIdUrgentContact(int index) {
-        return testIdCards[index - 1][5];
+        return null; // 已废弃
     }
 
     public static int getTestIdUrgentRelation(int index) {
@@ -172,28 +172,6 @@ public class Config {
         return "2041-09-30";
     }
 
-            /** 身份证数据池（虚拟数据，格式正确即可） */
-    private static final String[][] testIdCards = {
-        {"500100200010166638", "赵测试1", "id_front.jpg", "id_back.jpg", "紧急联系人1", "13900000001"},
-        {"330100198206152041", "钱测试2", "id_front.jpg", "id_back.jpg", "紧急联系人2", "13900000002"},
-        {"310101199701216257", "孙测试3", "id_front.jpg", "id_back.jpg", "紧急联系人3", "13900000003"},
-        {"440300198303237668", "李测试4", "id_front.jpg", "id_back.jpg", "紧急联系人4", "13900000004"},
-        {"110101198101108859", "周测试5", "id_front.jpg", "id_back.jpg", "紧急联系人5", "13900000005"},
-        {"610100197808226944", "吴测试6", "id_front.jpg", "id_back.jpg", "紧急联系人6", "13900000006"},
-        {"440300197201211729", "郑测试7", "id_front.jpg", "id_back.jpg", "紧急联系人7", "13900000007"},
-        {"330100199709168621", "王测试8", "id_front.jpg", "id_back.jpg", "紧急联系人8", "13900000008"},
-        {"510100198404030137", "冯测试9", "id_front.jpg", "id_back.jpg", "紧急联系人9", "13900000009"},
-        {"11010119790403641X", "陈测试10", "id_front.jpg", "id_back.jpg", "紧急联系人10", "13900000010"},
-        {"610100197701193302", "褚测试11", "id_front.jpg", "id_back.jpg", "紧急联系人11", "13900000011"},
-        {"500100199707097278", "卫测试12", "id_front.jpg", "id_back.jpg", "紧急联系人12", "13900000012"},
-        {"320100199105239706", "蒋测试13", "id_front.jpg", "id_back.jpg", "紧急联系人13", "13900000013"},
-        {"510100198302011795", "沈测试14", "id_front.jpg", "id_back.jpg", "紧急联系人14", "13900000014"},
-        {"110101198601141102", "韩测试15", "id_front.jpg", "id_back.jpg", "紧急联系人15", "13900000015"},
-        {"440300198308175048", "杨测试16", "id_front.jpg", "id_back.jpg", "紧急联系人16", "13900000016"},
-        {"230100199104101439", "朱测试17", "id_front.jpg", "id_back.jpg", "紧急联系人17", "13900000017"},
-        {"420100199504145153", "秦测试18", "id_front.jpg", "id_back.jpg", "紧急联系人18", "13900000018"},
-        {"510100197801101942", "尤测试19", "id_front.jpg", "id_back.jpg", "紧急联系人19", "13900000019"},
-        {"420100197001207309", "许测试20", "id_front.jpg", "id_back.jpg", "紧急联系人20", "13900000020"},
-        {"320100199708274092", "何测试21", "id_front.jpg", "id_back.jpg", "紧急联系人21", "13900000021"}
-    };
+    // 数据池已移除，实名认证改为 RealNameModule 随机生成
+    // private static final String[][] testIdCards = { ... };
 }
