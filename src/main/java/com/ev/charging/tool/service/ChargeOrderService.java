@@ -36,11 +36,12 @@ import java.util.Map;
 public class ChargeOrderService {
 
     private static final String[] FALLBACK_QR_CODES = {
-            "hlht://3702030162102.395815801/",   // 特来电场站（有价格）
-            "hlht://3702030162101.395815801/",   // 特来电场站（有价格）
-            "?connectorId=1721",      // 并充测试电站 stationId=148, 单价 2.0 元/度
-            "?connectorId=1722",      // 并充测试电站 stationId=148, 单价 2.0 元/度
+            "?connectorId=1721",      // 并充测试电站 stationId=148, areaCode=110101, 单价 2.0 元/度
+            "?connectorId=1722",      // 并充测试电站 stationId=148, areaCode=110101, 单价 2.0 元/度
     };
+
+    /** 默认区划码（北京东城区，匹配枪口 1721/1722） */
+    private static final String DEFAULT_AREA_CODE = "110101";
 
 
     /**
@@ -53,7 +54,7 @@ public class ChargeOrderService {
      */
     public Map<String, Object> createOrder(String phone, String code, String qrCode, String areaCode) {
         if (areaCode == null || areaCode.isEmpty()) {
-            areaCode = TestData.AREA_CODE;
+            areaCode = DEFAULT_AREA_CODE;
         }
 
         try {
