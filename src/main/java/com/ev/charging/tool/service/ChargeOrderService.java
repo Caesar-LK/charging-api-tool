@@ -111,20 +111,33 @@ public class ChargeOrderService {
             }
             int userId = userIdObj;
 
-            // 4. 加车（先有车，再创建支付分周期）
-            VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
-            vehicleData.setName(idName);
-            var saved = VehicleModule.saveVehicle(vehicleData);
-            if (!"200".equals(saved.getCode())) {
-                throw new RuntimeException("添加车辆失败: " + saved.getMessage());
+            // 4. 加车（已有车则跳过）
+            long vehicleId;
+            String plateNumber;
+            var existingVehicles = VehicleModule.getMyVehicles();
+            if ("200".equals(existingVehicles.getCode())
+                    && existingVehicles.getVehicleList() != null
+                    && !existingVehicles.getVehicleList().isEmpty()) {
+                // 已有车辆，使用第一辆
+                var first = existingVehicles.getVehicleList().get(0).getAsJsonObject();
+                vehicleId = first.get("vehicleId").getAsLong();
+                plateNumber = first.has("plateNumber") ? first.get("plateNumber").getAsString() : "";
+                log.info("[充电订单] 账号已有车辆，跳过加车: vehicleId={}, plate={}", vehicleId, plateNumber);
+            } else {
+                // 无车，添加新车
+                VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
+                vehicleData.setName(idName);
+                var saved = VehicleModule.saveVehicle(vehicleData);
+                if (!"200".equals(saved.getCode())) {
+                    throw new RuntimeException("添加车辆失败: " + saved.getMessage());
+                }
+                var newVehicles = VehicleModule.getMyVehicles();
+                var firstVehicle = newVehicles.getVehicleList().get(0).getAsJsonObject();
+                vehicleId = firstVehicle.get("vehicleId").getAsLong();
+                plateNumber = firstVehicle.has("plateNumber")
+                        ? firstVehicle.get("plateNumber").getAsString() : "";
+                log.info("[充电订单] 加车完成: vehicleId={}, plate={}", vehicleId, plateNumber);
             }
-            var vehicles = VehicleModule.getMyVehicles();
-            var firstVehicle = vehicles.getVehicleList().get(0).getAsJsonObject();
-            long vehicleId = firstVehicle.get("vehicleId").getAsLong();
-            String plateNumber = firstVehicle.has("plateNumber")
-                    ? firstVehicle.get("plateNumber").getAsString() : "";
-
-            log.info("[充电订单] Step 4 加车完成: vehicleId={}, plate={}", vehicleId, plateNumber);
 
             // 5. 支付分授权（创建周期 → mock 回调）
             String cycleCode = createAndAuthorizePayScore();
