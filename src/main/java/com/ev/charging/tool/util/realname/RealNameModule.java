@@ -10,13 +10,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 
 /**
@@ -29,61 +24,93 @@ public class RealNameModule {
     private static final String COMPLETE_USER_DETAIL_PATH = "/chargeUser/completeUserDetail";
     private static final String ETC_MERGE_HINT = "已绑定ETC账户";
 
-    private static final List<RealNameData> AVAILABLE_ID_POOL = new ArrayList<>();
     private static final Random RANDOM = new Random();
 
-    static {
-        int count = Config.getTestIdCardCount();
-        for (int i = 1; i <= count; i++) {
-            String name = Config.getTestIdName(i);
-            String num = Config.getTestIdNum(i);
-            if (name == null || num == null) {
-                continue;
-            }
-            RealNameData d = new RealNameData();
-            d.idName = name;
-            d.idNum = num;
-            d.idStart = Config.getTestIdStart(i);
-            d.idEnd = Config.getTestIdEnd(i);
-            d.imgFront = Config.getTestIdImgFront(i);
-            d.imgBack = Config.getTestIdImgBack(i);
-            d.urgentName = Config.getTestIdUrgentName(i);
-            d.urgentContact = Config.getTestIdUrgentContact(i);
-            d.urgentRelation = Config.getTestIdUrgentRelation(i);
-            AVAILABLE_ID_POOL.add(d);
+    // ==================== 随机身份证生成 ====================
+
+    private static final String[] ADDRESS_CODES = {
+            "110000", "110101", "110102",
+            "310000", "310101", "310104",
+            "440000", "440100", "440300", "440500",
+            "320000", "320100", "320200",
+            "330000", "330100", "330200"
+    };
+
+    private static final int[] FACTORS = {7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2};
+    private static final char[] CHECK_CODES = {'1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'};
+
+    private static final String[] SURNAMES = {"赵", "钱", "孙", "李", "周", "吴", "郑", "王", "冯", "陈"};
+    private static final String[] GIVEN_NAMES = {
+            "伟", "芳", "娜", "敏", "静", "丽", "强", "磊", "军", "洋",
+            "勇", "艳", "杰", "娟", "涛", "明", "超", "秀英", "华", "鹏",
+            "飞", "婷", "宇", "浩", "欣", "雨", "晨", "梓", "一", "思"
+    };
+
+    /**
+     * 随机生成姓名（2~3 字）。
+     */
+    public static String randomName() {
+        String surname = SURNAMES[RANDOM.nextInt(SURNAMES.length)];
+        String given = GIVEN_NAMES[RANDOM.nextInt(GIVEN_NAMES.length)];
+        // 30% 概率双字名
+        if (RANDOM.nextInt(100) < 30) {
+            given += GIVEN_NAMES[RANDOM.nextInt(GIVEN_NAMES.length)];
         }
-        log.info("[实名数据池] 加载 {} 条实名数据", AVAILABLE_ID_POOL.size());
+        return surname + given;
+    }
+
+    /**
+     * 随机生成身份证号（18 位，校验位正确）。
+     */
+    public static String randomIdCard() {
+        String addrCode = ADDRESS_CODES[RANDOM.nextInt(ADDRESS_CODES.length)];
+        String birthDate = randomBirthdate(1980, 2000);
+        int genderVal = RANDOM.nextInt(2);
+        int seqBase = RANDOM.nextInt(500);
+        int seq = seqBase * 2 + genderVal;
+        String id17 = addrCode + birthDate + String.format("%03d", seq);
+        return id17 + calcCheckDigit(id17);
+    }
+
+    private static String randomBirthdate(int startYear, int endYear) {
+        long startEpochDay = LocalDate.of(startYear, 1, 1).toEpochDay();
+        long endEpochDay = LocalDate.of(endYear, 12, 31).toEpochDay();
+        long range = endEpochDay - startEpochDay + 1;
+        long randomDay = startEpochDay + RANDOM.nextInt((int) range);
+        return LocalDate.ofEpochDay(randomDay).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+    }
+
+    private static char calcCheckDigit(String id17) {
+        int total = 0;
+        for (int i = 0; i < 17; i++) {
+            total += Character.getNumericValue(id17.charAt(i)) * FACTORS[i];
+        }
+        return CHECK_CODES[total % 11];
     }
 
     private RealNameModule() {
     }
 
+    /** 最大尝试次数（随机生成，不限数据池） */
+    private static final int MAX_ATTEMPTS = 10;
+
     /**
-     * 提交实名认证（从数据池随机选取，用完即止）。
+     * 提交实名认证（随机生成姓名 + 身份证号，不限数据池）。
      */
     public static RealNameSubmitResult submitRealNameUnique() {
-        if (AVAILABLE_ID_POOL.isEmpty()) {
-            throw new RuntimeException("实名数据池已耗尽，请在 Config 中补充数据");
-        }
-
-        List<RealNameData> shuffled = new ArrayList<>(AVAILABLE_ID_POOL);
-        Collections.shuffle(shuffled, RANDOM);
-
         RealNameResult lastFailure = null;
-        for (RealNameData data : shuffled) {
-            // 临时调整：只校验姓名、身份证号、手机号，去掉附件和紧急联系人
-            String idName = data.idName;
-            String idNum = data.idNum;
 
-            log.info("[实名认证] 准备提交: idName={}, idNum={}, phone={}", idName, maskIdNum(idNum), LoginContext.getPhone());
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            String idName = randomName();
+            String idNum = randomIdCard();
+
+            log.info("[实名认证] 第{}次尝试: idName={}, idNum={}, phone={}",
+                    attempt, idName, maskIdNum(idNum), LoginContext.getPhone());
 
             RealNameResult result = submitRealName(idName, idNum);
 
             if (result.isSuccess()) {
-                AVAILABLE_ID_POOL.remove(data);
-                log.info("[实名认证] 成功! idName={}, idNum={}, 剩余={}条",
-                        idName, maskIdNum(idNum), AVAILABLE_ID_POOL.size());
-
+                log.info("[实名认证] 成功! idName={}, idNum={}", idName, maskIdNum(idNum));
                 RealNameSubmitResult submitResult = new RealNameSubmitResult();
                 submitResult.setCode(result.getCode());
                 submitResult.setMessage(result.getMessage());
@@ -95,7 +122,6 @@ public class RealNameModule {
             if (isEtcMergeRequired(result)) {
                 log.warn("[实名认证] 检测到 ETC 合并提示, idName={}, idNum={}", idName, maskIdNum(idNum));
                 if (doEtcMerge(idNum)) {
-                    AVAILABLE_ID_POOL.remove(data);
                     RealNameSubmitResult submitResult = new RealNameSubmitResult();
                     submitResult.setCode("200");
                     submitResult.setMessage("ETC 合并完成,视为实名成功");
@@ -106,9 +132,11 @@ public class RealNameModule {
             }
 
             lastFailure = result;
+            log.warn("[实名认证] 第{}次失败: code={}, message={}", attempt, result.getCode(), result.getMessage());
         }
 
-        throw new RuntimeException("实名数据池所有条目均失败: " + (lastFailure != null ? lastFailure.getMessage() : "未知"));
+        throw new RuntimeException("实名认证失败，已尝试 " + MAX_ATTEMPTS + " 次: "
+                + (lastFailure != null ? lastFailure.getMessage() : "未知"));
     }
 
     /**
@@ -182,78 +210,6 @@ public class RealNameModule {
             log.warn("[ETC合并] 失败: {}", e.getMessage());
             return false;
         }
-    }
-
-    // ==================== 图片上传 ====================
-
-    private static boolean uploadIfMissing(RealNameData data) {
-        if (data.imgFront != null && !data.imgFront.isEmpty()
-                && data.imgBack != null && !data.imgBack.isEmpty()) {
-            return true;
-        }
-        Path dir = Paths.get(Config.getIdCardImageDir());
-        if (!Files.isDirectory(dir)) {
-            log.warn("[上传身份证] 目录不存在: {}", dir);
-            return false;
-        }
-        try {
-            if (data.imgFront == null || data.imgFront.isEmpty()) {
-                File f = findIdImage(dir.toFile(), data.idNum, "front");
-                if (f == null) return false;
-                data.imgFront = uploadImage(f);
-            }
-            if (data.imgBack == null || data.imgBack.isEmpty()) {
-                File f = findIdImage(dir.toFile(), data.idNum, "back");
-                if (f == null) return false;
-                data.imgBack = uploadImage(f);
-            }
-            return true;
-        } catch (Exception e) {
-            log.error("[上传身份证] 异常: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    private static String uploadImage(File file) throws Exception {
-        ApiResponse<JsonElement> signResp = HttpClient.getJson(
-                Config.getBaseUrl() + Config.getObsSignPath(), null);
-        if (!signResp.isSuccess()) {
-            throw new RuntimeException("获取 OBS 签名失败");
-        }
-
-        String policy = signResp.getData().getAsJsonObject().get("policy").getAsString();
-        String signature = signResp.getData().getAsJsonObject().get("signature").getAsString();
-        String accessKeyId = signResp.getData().getAsJsonObject().get("accessKeyId").getAsString();
-        String key = signResp.getData().getAsJsonObject().get("key").getAsString();
-
-        ApiResponse<JsonElement> uploadResp = HttpClient.postMultipartWithFields(
-                "https://" + Config.getObsBucket() + "." + Config.getObsEndpointHost() + "/",
-                file, "file",
-                java.util.Map.of("policy", policy, "signature", signature,
-                        "AWSAccessKeyId", accessKeyId, "key", key),
-                null);
-
-        if (uploadResp.getHttpStatus() == 204 || uploadResp.getHttpStatus() == 200) {
-            return "https://" + Config.getObsBucket() + "." + Config.getObsEndpointHost() + "/" + key;
-        }
-        throw new RuntimeException("OBS 上传失败: " + uploadResp.getHttpStatus());
-    }
-
-    private static File findIdImage(File dir, String idNum, String side) {
-        for (String ext : new String[]{".jpg", ".jpeg", ".png"}) {
-            File exact = new File(dir, idNum + "_" + side + ext);
-            if (exact.exists()) return exact;
-        }
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                if (f.isFile() && f.getName().contains("_" + idNum + "_")
-                        && f.getName().endsWith("_" + side + ".jpg")) {
-                    return f;
-                }
-            }
-        }
-        return null;
     }
 
     // ==================== 工具方法 ====================
@@ -339,15 +295,4 @@ public class RealNameModule {
         }
     }
 
-    private static class RealNameData {
-        String idName;
-        String idNum;
-        String idStart;
-        String idEnd;
-        String imgFront;
-        String imgBack;
-        String urgentName;
-        String urgentContact;
-        int urgentRelation;
-    }
 }
