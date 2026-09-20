@@ -36,8 +36,9 @@ import java.util.Map;
 public class ChargeOrderService {
 
     private static final String[] FALLBACK_QR_CODES = {
-            "?connectorId=1721",      // 并充测试电站 stationId=148, areaCode=110101, 单价 2.0 元/度
-            "?connectorId=1722",      // 并充测试电站 stationId=148, areaCode=110101, 单价 2.0 元/度
+            "?connectorId=451",       // 可用测试桩
+            "?connectorId=452",       // 可用测试桩
+            "?connectorId=456",       // 可用测试桩
     };
 
     /** 默认区划码（北京东城区，匹配枪口 1721/1722） */
