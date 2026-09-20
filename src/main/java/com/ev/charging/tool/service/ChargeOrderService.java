@@ -41,8 +41,8 @@ public class ChargeOrderService {
             "?connectorId=456",       // 可用测试桩
     };
 
-    /** 默认区划码（北京东城区，匹配枪口 1721/1722） */
-    private static final String DEFAULT_AREA_CODE = "110101";
+    /** 默认区划码（南京，匹配枪口 451/452/456） */
+    private static final String DEFAULT_AREA_CODE = "320100";
 
 
     /**
