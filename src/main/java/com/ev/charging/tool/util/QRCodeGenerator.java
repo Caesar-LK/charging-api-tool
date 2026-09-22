@@ -84,14 +84,14 @@ public class QRCodeGenerator {
     }
 
     public static String generateTestPileQR(int connectorId) {
-        if (connectorId < 350 || connectorId > 500) {
-            throw new IllegalArgumentException("测试充电桩ID范围为350-500");
+        if (connectorId < 40 || connectorId > 140) {
+            throw new IllegalArgumentException("测试充电桩ID范围为40-140");
         }
         return "?connectorId=" + connectorId;
     }
 
     public static String generateRandomTestPileQR() {
-        int connectorId = new Random().nextInt(151) + 350;
+        int connectorId = new Random().nextInt(101) + 40;
         return generateTestPileQR(connectorId);
     }
 
