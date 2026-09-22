@@ -53,7 +53,7 @@ public class PayScoreHelper {
      * 前置：调用前需已完成登录（LoginContext 中有 token）。
      */
     public static PayScoreCycle prepareAuthorizedCycle(int userId) {
-        PayScoreModule.CreateOrderResult orderResult = PayScoreModule.createOrder("");
+        PayScoreModule.CreateOrderResult orderResult = PayScoreModule.createOrder("", null, null);
         if (!"200".equals(orderResult.getCode())) {
             throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());
         }
