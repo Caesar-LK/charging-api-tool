@@ -36,9 +36,9 @@ import java.util.Map;
 public class ChargeOrderService {
 
     private static final String[] FALLBACK_QR_CODES = {
-            "?connectorId=40",        // 可用测试桩
-            "?connectorId=50",        // 可用测试桩
-            "?connectorId=80",        // 可用测试桩
+            "?connectorId=91",        // 可用测试桩
+            "?connectorId=92",        // 可用测试桩
+            "?connectorId=93",        // 可用测试桩
     };
 
     /** 默认区划码（南京，匹配枪口 451/452/456） */
