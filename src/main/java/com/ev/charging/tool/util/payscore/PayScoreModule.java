@@ -38,14 +38,14 @@ public class PayScoreModule {
      * 创建支付分订单（拉起授权弹窗）。
      * POST /chargeUser/pay-score/create-order
      *
-     * @param code     微信 code（测试环境传空字符串）
+     * @param code     微信 code（测试环境传 "111"）
      * @param deviceId 充电桩设备 SN（可选）
      * @param location 服务地点（可选）
+     * @param token    登录态 token（从 LoginContext 获取，显式传入确保 headers 中有 token）
      * @return 订单信息（含 outOrderNo）
      */
-    public static CreateOrderResult createOrder(String code, String deviceId, String location) {
+    public static CreateOrderResult createOrder(String code, String deviceId, String location, String token) {
         String url = Config.getBaseUrl() + CREATE_ORDER_PATH;
-        String token = LoginContext.getToken();
 
         JsonObject body = new JsonObject();
         body.addProperty("code", code != null ? code : "");
