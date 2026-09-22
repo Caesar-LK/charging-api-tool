@@ -244,7 +244,7 @@ public class ChargeOrderService {
 
             // 测试环境：setPhone → create-order(空code) → 查cycle_code
             // 真实环境需要：setPhone → create-order(微信code) → 查cycle_code → mockCallback
-            PayScoreCycle cycle = PayScoreHelper.prepareAuthorizedCycle(userId, account.getPhone());
+            PayScoreCycle cycle = PayScoreHelper.prepareAuthorizedCycle(userId, phone);
             if (cycle == null) {
                 log.warn("[充电订单] 创建支付分周期失败");
                 return null;
