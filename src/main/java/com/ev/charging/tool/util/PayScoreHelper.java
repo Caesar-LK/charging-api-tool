@@ -60,7 +60,7 @@ public class PayScoreHelper {
         PayScoreModule.setPhone(phone);
 
         // 创建支付分订单（创单，charge_user_pay_score 表新增一行）
-        PayScoreModule.CreateOrderResult orderResult = PayScoreModule.createOrder("", null, null);
+        PayScoreModule.CreateOrderResult orderResult = PayScoreModule.createOrder("111", "", "");
         if (!"200".equals(orderResult.getCode())) {
             throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());
         }
