@@ -44,8 +44,7 @@ public class PayScoreModule {
      * @return 订单信息（含 outOrderNo）
      */
     public static CreateOrderResult createOrder(String code, String deviceId, String location) {
-        String url = Config.getBaseUrl() + CREATE_ORDER_PATH
-                + "?openId=test_openid&phone=" + LoginContext.getPhone();
+        String url = Config.getBaseUrl() + CREATE_ORDER_PATH;
         String token = LoginContext.getToken();
 
         JsonObject body = new JsonObject();
