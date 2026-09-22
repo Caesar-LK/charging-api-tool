@@ -66,6 +66,7 @@ public class PayScoreModule {
             if (data.has("state") && !data.get("state").isJsonNull()) {
                 result.setState(data.get("state").getAsInt());
             }
+            if (data.has("cycleCode")) result.setCycleCode(data.get("cycleCode").getAsString());
         }
 
         return result;
@@ -96,6 +97,7 @@ public class PayScoreModule {
         private String outOrderNo;
         private String packageStr;
         private Integer state;
+        private String cycleCode;
 
         public boolean isSuccess() {
             return "200".equals(code);

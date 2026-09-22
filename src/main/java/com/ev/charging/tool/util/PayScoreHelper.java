@@ -59,10 +59,19 @@ public class PayScoreHelper {
         // 先设置手机号，使后续 createOrder 的 openId 校验通过
         PayScoreModule.setPhone(phone);
 
+        // 创建支付分订单（创单，charge_user_pay_score 表新增一行）
         PayScoreModule.CreateOrderResult orderResult = PayScoreModule.createOrder("", null, null);
         if (!"200".equals(orderResult.getCode())) {
             throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());
         }
+
+        // 用 cycle_code 调 mock 回调完成授权
+        String cycleCode = orderResult.getCycleCode();
+        if (cycleCode != null && !cycleCode.isEmpty()) {
+            boolean authorized = PayScoreModule.mockCallback(cycleCode);
+            log.info("[支付分] mockCallback: cycleCode={}, authorized={}", cycleCode, authorized);
+        }
+
         PayScoreCycle cycle = getLatestCycle(userId);
         if (cycle == null) {
             throw new IllegalStateException("创建成功但查询不到周期: userId=" + userId);

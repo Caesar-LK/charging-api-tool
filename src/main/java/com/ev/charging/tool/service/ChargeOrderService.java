@@ -242,7 +242,7 @@ public class ChargeOrderService {
         try {
             int userId = com.ev.charging.tool.util.user.ChargeUserModule.getMyInfo().getUserId();
 
-            // 测试环境：setPhone → create-order(空code) → 查cycle_code
+            // 测试环境：setPhone → create-order(空code) → mockCallback(cycleCode) → 查cycle
             // 真实环境需要：setPhone → create-order(微信code) → 查cycle_code → mockCallback
             PayScoreCycle cycle = PayScoreHelper.prepareAuthorizedCycle(userId, phone);
             if (cycle == null) {
