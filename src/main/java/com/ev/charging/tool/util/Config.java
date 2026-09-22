@@ -130,6 +130,33 @@ public class Config {
         return "/home/ubuntu/charging-api-test/scripts/id_card_generator/output";
     }
 
+    // ===== 微信支付分接口（真实接口，测试环境传空 code） =====
+
+    /** 创建支付分订单 */
+    public static String getPayScoreCreateOrderPath() {
+        return get("payscore.create-order.path", "/chargeUser/pay-score/create-order");
+    }
+
+    /** 查询用户支付分授权周期列表 */
+    public static String getPayScoreCyclesPath() {
+        return get("payscore.cycles.path", "/chargeUser/pay-score/cycles");
+    }
+
+    /** 取消授权订单 */
+    public static String getPayScoreCancelPath() {
+        return get("payscore.cancel.path", "/chargeUser/pay-score/cancel");
+    }
+
+    /** 手动结单 */
+    public static String getPayScoreSettlePath() {
+        return get("payscore.settle.path", "/chargeUser/pay-score/settle");
+    }
+
+    /** 手动退款 */
+    public static String getPayScoreRefundPath() {
+        return get("payscore.refund.path", "/chargeUser/pay-score/refund");
+    }
+
     // ===== 测试数据（已废弃：实名认证改为随机生成，不再依赖固定数据池） =====
 
     public static int getTestIdCardCount() {

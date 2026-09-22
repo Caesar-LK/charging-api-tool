@@ -1,31 +1,24 @@
 package com.ev.charging.tool.util;
 
+import com.ev.charging.tool.util.payscore.PayScoreModule;
 import com.ev.charging.tool.util.user.ChargeUserModule;
 import com.ev.charging.tool.util.user.ChargeUserModule.MyInfoResult;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 微信支付分测试辅助工具（基于测试环境 debug 接口）。
+ * 微信支付分辅助工具（基于真实接口）。
  * <p>
- * 设计：支付分授权周期由 debug 接口预置为"已授权"状态，
- * 之后在当前周期内点击开始充电即会自动走支付分授权。
+ * 设计：支付分授权周期通过真实接口 /chargeUser/pay-score/create-order 创建，
+ * 测试环境传空 code 即可拉起授权周期。
  */
 @Slf4j
 public class PayScoreHelper {
-
-    private static final String CREATE_AUTHORIZED_PATH = "/debug/pay-score/create-authorized";
-    private static final String CYCLES_PATH = "/debug/pay-score/cycles";
-    private static final String CANCEL_PATH = "/debug/pay-score/cancel";
-    private static final String SETTLE_PATH = "/debug/pay-score/settle";
-    private static final String REFUND_PATH = "/debug/pay-score/refund";
-    private static final String SYNC_PAID_STATUS_PATH = "/debug/pay-score/sync-paid-status";
-    private static final String MOCK_CALLBACK_PATH = "/mock/wxpayscore/callback";
 
     private PayScoreHelper() {
     }
 
     /**
-     * 一站式：创建账号并登录 → 取 userId → 创建"已授权"支付分周期。
+     * 一站式：创建账号并登录 → 取 userId → 创建支付分周期。
      *
      * @return 授权上下文（含 phone / userId / 周期信息）
      */
@@ -56,15 +49,13 @@ public class PayScoreHelper {
     }
 
     /**
-     * 为指定 userId 创建"已授权"周期并返回。
+     * 为指定 userId 创建周期并返回。
      * 前置：调用前需已完成登录（LoginContext 中有 token）。
      */
     public static PayScoreCycle prepareAuthorizedCycle(int userId) {
-        ApiResponse<?> resp = HttpClient.postJson(
-                Config.getBaseUrl() + CREATE_AUTHORIZED_PATH + "?userId=" + userId,
-                "{}", LoginContext.getToken());
-        if (!"200".equals(resp.getCode())) {
-            throw new IllegalStateException("创建已授权周期失败: " + resp.getCode() + " " + resp.getMessage());
+        PayScoreModule.CreateOrderResult orderResult = PayScoreModule.createOrder("");
+        if (!"200".equals(orderResult.getCode())) {
+            throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());
         }
         PayScoreCycle cycle = getLatestCycle(userId);
         if (cycle == null) {
@@ -85,7 +76,8 @@ public class PayScoreHelper {
      * 查询用户全部支付分周期。
      */
     public static java.util.List<PayScoreCycle> getCycles(int userId) {
-        String url = Config.getBaseUrl() + CYCLES_PATH + "?userId=" + userId;
+        String url = com.ev.charging.tool.util.Config.getBaseUrl()
+                + com.ev.charging.tool.util.Config.getPayScoreCyclesPath() + "?userId=" + userId;
         ApiResponse<?> resp = HttpClient.getJson(url, LoginContext.getToken());
 
         java.util.List<PayScoreCycle> cycles = new java.util.ArrayList<>();
@@ -100,21 +92,6 @@ public class PayScoreHelper {
         return cycles;
     }
 
-    /**
-     * 调用微信支付分 mock 回调，模拟授权完成。
-     *
-     * @param cycleCode 支付分周期编码（charge_user_pay_score.cycle_code）
-     * @return 回调结果
-     */
-    public static ApiResponse<?> mockCallback(String cycleCode) {
-        String url = Config.getBaseUrl() + MOCK_CALLBACK_PATH
-                + "?billNo=" + cycleCode + "&billSource=5";
-        ApiResponse<?> resp = HttpClient.postJson(url, "{}", LoginContext.getToken());
-        log.info("[支付分-mock] cycleCode={}, code={}, message={}",
-                cycleCode, resp.getCode(), resp.getMessage());
-        return resp;
-    }
-
     /** 校验指定用户的当前周期是否已授权。 */
     public static boolean isAuthorized(int userId) {
         PayScoreCycle cycle = getLatestCycle(userId);
@@ -127,7 +104,9 @@ public class PayScoreHelper {
         int count = 0;
         for (PayScoreCycle cycle : cycles) {
             ApiResponse<?> resp = HttpClient.postJson(
-                    Config.getBaseUrl() + CANCEL_PATH + "?cycleId=" + cycle.id,
+                    com.ev.charging.tool.util.Config.getBaseUrl()
+                            + com.ev.charging.tool.util.Config.getPayScoreCancelPath()
+                            + "?cycleId=" + cycle.id,
                     "{}", LoginContext.getToken());
             if ("200".equals(resp.getCode())) {
                 count++;
