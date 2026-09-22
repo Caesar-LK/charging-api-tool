@@ -35,7 +35,7 @@ public class PayScoreHelper {
         }
         int userId = info.getUserId();
 
-        PayScoreCycle cycle = prepareAuthorizedCycle(userId);
+        PayScoreCycle cycle = prepareAuthorizedCycle(userId, account.getPhone());
 
         AuthorizedUser result = new AuthorizedUser();
         result.account = account;
@@ -51,8 +51,14 @@ public class PayScoreHelper {
     /**
      * 为指定 userId 创建周期并返回。
      * 前置：调用前需已完成登录（LoginContext 中有 token）。
+     *
+     * @param userId 充电用户 ID
+     * @param phone  手机号（用于 setPhone  mock openId）
      */
-    public static PayScoreCycle prepareAuthorizedCycle(int userId) {
+    public static PayScoreCycle prepareAuthorizedCycle(int userId, String phone) {
+        // 先设置手机号，使后续 createOrder 的 openId 校验通过
+        PayScoreModule.setPhone(phone);
+
         PayScoreModule.CreateOrderResult orderResult = PayScoreModule.createOrder("", null, null);
         if (!"200".equals(orderResult.getCode())) {
             throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());

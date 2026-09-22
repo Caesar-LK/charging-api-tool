@@ -242,9 +242,9 @@ public class ChargeOrderService {
         try {
             int userId = com.ev.charging.tool.util.user.ChargeUserModule.getMyInfo().getUserId();
 
-            // 测试环境：使用 debug 端点直接创建已授权周期
+            // 测试环境：setPhone → create-order(空code) → 查cycle_code
             // 真实环境需要：setPhone → create-order(微信code) → 查cycle_code → mockCallback
-            PayScoreCycle cycle = PayScoreHelper.prepareAuthorizedCycle(userId);
+            PayScoreCycle cycle = PayScoreHelper.prepareAuthorizedCycle(userId, account.getPhone());
             if (cycle == null) {
                 log.warn("[充电订单] 创建支付分周期失败");
                 return null;
