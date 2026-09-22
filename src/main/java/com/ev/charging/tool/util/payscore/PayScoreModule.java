@@ -50,6 +50,7 @@ public class PayScoreModule {
         JsonObject body = new JsonObject();
         body.addProperty("code", code != null ? code : "");
         body.addProperty("openId", "test_openid");
+        body.addProperty("phone", LoginContext.getPhone());
         if (deviceId != null) body.addProperty("deviceId", deviceId);
         if (location != null) body.addProperty("location", location);
 
