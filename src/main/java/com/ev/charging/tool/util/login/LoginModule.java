@@ -19,24 +19,42 @@ public class LoginModule {
     }
 
     public static LoginResult login(String phone) {
+        // Step 1: 创建测试用户
         String url = Config.getBaseUrl() + Config.getAddTestUserPath()
                 + "?phone=" + phone;
 
         ApiResponse<JsonElement> resp = HttpClient.postJson(url, null);
         log.info("[登录] phone={}, httpStatus={}, code={}", phone, resp.getHttpStatus(), resp.getCode());
 
-        LoginResult result = buildResult(resp, phone);
+        // addTestUser 返回 code 可能为 null，用 httpStatus 判断成功
+        LoginResult result = new LoginResult();
+        result.setPhone(phone);
+        result.setHttpStatus(resp.getHttpStatus());
 
-        if (result.isSuccess()) {
-            String effectiveToken = result.getToken() != null ? result.getToken() : result.getTempToken();
-            if (effectiveToken != null) {
-                LoginContext.setToken(effectiveToken);
-                LoginContext.setPhone(phone);
-                log.info("[登录成功] phone={}, tokenLen={}", phone, effectiveToken.length());
+        if (resp.getHttpStatus() == 200) {
+            // Step 2: 用验证码登录获取 token
+            sendSms(phone);
+            String loginUrl = Config.getBaseUrl() + Config.getLoginPath()
+                    + "?phone=" + phone + "&smsCode=" + Config.getTestSmsCode();
+            ApiResponse<JsonElement> loginResp = HttpClient.postJson(loginUrl, null);
+            log.info("[登录] phone={}, httpStatus={}, code={}", phone, loginResp.getHttpStatus(), loginResp.getCode());
+
+            LoginResult loginResult = buildResult(loginResp, phone);
+            if (loginResult.isSuccess()) {
+                String effectiveToken = loginResult.getToken() != null ? loginResult.getToken() : loginResult.getTempToken();
+                if (effectiveToken != null) {
+                    LoginContext.setToken(effectiveToken);
+                    LoginContext.setPhone(phone);
+                    log.info("[登录成功] phone={}, tokenLen={}", phone, effectiveToken.length());
+                }
+            } else {
+                log.warn("[登录失败] phone={}, code={}", phone, loginResult.getCode());
             }
-        } else {
-            log.warn("[登录失败] phone={}, code={}", phone, result.getCode());
+            return loginResult;
         }
+
+        result.setCode("500");
+        result.setMessage("addTestUser 失败: httpStatus=" + resp.getHttpStatus());
         return result;
     }
 
