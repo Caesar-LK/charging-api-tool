@@ -67,13 +67,6 @@ public class PayScoreHelper {
             throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());
         }
 
-        // 用 cycle_code 调 mock 回调完成授权
-        String cycleCode = orderResult.getCycleCode();
-        if (cycleCode != null && !cycleCode.isEmpty()) {
-            boolean authorized = PayScoreModule.mockCallback(cycleCode);
-            log.info("[支付分] mockCallback: cycleCode={}, authorized={}", cycleCode, authorized);
-        }
-
         PayScoreCycle cycle = getLatestCycle(userId);
         if (cycle == null) {
             throw new IllegalStateException("创建成功但查询不到周期: userId=" + userId);
