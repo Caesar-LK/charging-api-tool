@@ -21,8 +21,6 @@ import java.util.Map;
 @Slf4j
 public class CreateOvertimeOrderJob implements IJobHandler {
 
-    private final ChargeOrderService chargeOrderService = new ChargeOrderService();
-
     /** 超时等待时间（分钟），默认 30 分钟 */
     private static final int OVERTIME_MINUTES = 30;
 
@@ -36,6 +34,7 @@ public class CreateOvertimeOrderJob implements IJobHandler {
             String qrCode = params.get("qrCode");
 
             // 1. 创建充电订单
+            ChargeOrderService chargeOrderService = new ChargeOrderService();
             Map<String, Object> result = chargeOrderService.createOrder(null, null, qrCode, areaCode);
             if (!Boolean.TRUE.equals(result.get("success"))) {
                 String error = (String) result.get("error");
@@ -53,14 +52,14 @@ public class CreateOvertimeOrderJob implements IJobHandler {
             Thread.sleep(OVERTIME_MINUTES * 60 * 1000L);
 
             // 3. 调用 createOvertimeOrder 接口
-            String url = com.ev.charging.tool.util.Config.getBaseUrl()
-                    + "/api/charge/orderTest/createOvertimeOrder?orderId=" + orderId;
+            String url = "https://charge-dev.jieyoucloud.com/charge-pay/mock/wxpayscore/callback"
+                    + "?billNo=" + orderId + "&billSource=5";
             var resp = com.ev.charging.tool.util.HttpClient.getJson(url, LoginContext.getToken());
-            log.info("[占位费] createOvertimeOrder: orderId={}, code={}, message={}",
+            log.info("[占位费-mock] orderId={}, code={}, message={}",
                     orderId, resp.getCode(), resp.getMessage());
 
             if ("200".equals(resp.getCode())) {
-                return SUCCESS;
+                return IJobHandler.SUCCESS;
             } else {
                 return new ReturnT<>(ReturnT.FAIL_CODE, "createOvertimeOrder 失败: " + resp.getMessage());
             }
