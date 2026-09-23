@@ -4,7 +4,7 @@ import com.ev.charging.tool.service.ChargeOrderService;
 import com.ev.charging.tool.util.LoginContext;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.IJobHandler;
-import com.xxl.job.core.handler.annotation.ReturnT;
+import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.extern.slf4j.Slf4j;
 
