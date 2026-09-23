@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PayScoreModule {
 
     private static final String CREATE_ORDER_PATH = "/chargeUser/pay-score/create-order";
-    private static final String MOCK_CALLBACK_PATH = "/mock/wxpayscore/callback";
+    private static final String MOCK_CALLBACK_PATH = "/charge-pay/mock/wxpayscore/callback";
     private static final String SET_PHONE_PATH = "/debug/mock/wechat/setPhone";
 
     private PayScoreModule() {
