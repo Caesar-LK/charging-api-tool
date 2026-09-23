@@ -18,6 +18,13 @@ public class PayScoreModule {
 
     private static final String CREATE_ORDER_PATH = "/chargeUser/pay-score/create-order";
     private static final String MOCK_CALLBACK_PATH = "/charge-pay/mock/wxpayscore/callback";
+
+    /**
+     * mockCallback 不带 /api/charge 前缀，直接用 https://charge-dev.jieyoucloud.com
+     */
+    public static String getMockCallbackBaseUrl() {
+        return "https://charge-dev.jieyoucloud.com";
+    }
     private static final String SET_PHONE_PATH = "/debug/mock/wechat/setPhone";
 
     private PayScoreModule() {
@@ -80,10 +87,10 @@ public class PayScoreModule {
      * @return 是否授权成功
      */
     public static boolean mockCallback(String cycleCode) {
-        String url = Config.getBaseUrl() + MOCK_CALLBACK_PATH
+        String url = getMockCallbackBaseUrl() + MOCK_CALLBACK_PATH
                 + "?billNo=" + cycleCode + "&billSource=5";
         ApiResponse<?> resp = HttpClient.postJson(url, "{}", LoginContext.getToken());
-        log.info("[支付分] mockCallback: cycleCode={}, code={}, message={}",
+        log.info("[支付分-mock] cycleCode={}, code={}, message={}",
                 cycleCode, resp.getCode(), resp.getMessage());
         return "200".equals(resp.getCode());
     }
