@@ -18,20 +18,9 @@ public class LoginModule {
     private LoginModule() {
     }
 
-    public static void sendSms(String phone) {
-        String pathWithPhone = Config.getSmsSendPath().replace("{phone}", phone);
-        String sign = Md5Util.generateSmsSign(phone, Config.getSmsSalt1(), Config.getSmsSalt2());
-        String url = Config.getBaseUrl() + pathWithPhone + "?sign=" + sign;
-
-        ApiResponse<JsonElement> resp = HttpClient.postJson(url, null);
-        log.info("[发送验证码] phone={}, code={}, message={}", phone, resp.getCode(), resp.getMessage());
-    }
-
     public static LoginResult login(String phone) {
-        sendSms(phone);
-
-        String url = Config.getBaseUrl() + Config.getLoginPath()
-                + "?phone=" + phone + "&smsCode=" + Config.getTestSmsCode();
+        String url = Config.getBaseUrl() + Config.getAddTestUserPath()
+                + "?phone=" + phone;
 
         ApiResponse<JsonElement> resp = HttpClient.postJson(url, null);
         log.info("[登录] phone={}, httpStatus={}, code={}", phone, resp.getHttpStatus(), resp.getCode());

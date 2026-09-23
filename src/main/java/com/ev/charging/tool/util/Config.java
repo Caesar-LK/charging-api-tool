@@ -130,6 +130,11 @@ public class Config {
         return "/home/ubuntu/charging-api-test/scripts/id_card_generator/output";
     }
 
+    /** 添加测试用户（注册登录） */
+    public static String getAddTestUserPath() {
+        return "/auth4test/addTestUser";
+    }
+
     // ===== 微信支付分接口（真实接口，测试环境传空 code） =====
 
     /** 创建支付分订单 */
