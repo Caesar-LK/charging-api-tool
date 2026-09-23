@@ -19,7 +19,6 @@ public class CreateOvertimeOrderJob implements IJobHandler {
     private static final Logger log = LoggerFactory.getLogger(CreateOvertimeOrderJob.class);
     private static final int OVERTIME_MINUTES = 30;
 
-    @Override
     public ReturnT<String> execute(String param) throws Exception {
         String phone = null;
         try {
