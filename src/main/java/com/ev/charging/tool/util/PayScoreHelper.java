@@ -67,7 +67,13 @@ public class PayScoreHelper {
             throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());
         }
 
-        PayScoreCycle cycle = getLatestCycle(userId);
+        // 创单后数据可能需要一点时间同步到查询接口，最多重试 3 次
+        PayScoreCycle cycle = null;
+        for (int i = 0; i < 3; i++) {
+            cycle = getLatestCycle(userId);
+            if (cycle != null) break;
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+        }
         if (cycle == null) {
             throw new IllegalStateException("创建成功但查询不到周期: userId=" + userId);
         }
