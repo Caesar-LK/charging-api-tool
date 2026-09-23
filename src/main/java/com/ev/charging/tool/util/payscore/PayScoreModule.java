@@ -53,7 +53,7 @@ public class PayScoreModule {
         if (location != null) body.addProperty("location", location);
 
         ApiResponse<?> resp = HttpClient.postJson(url, body.toString(), token);
-        log.info("[支付分] createOrder: code={}, message={}", resp.getCode(), resp.getMessage());
+        log.info("[支付分] createOrder: code={}, message={}, data={}", resp.getCode(), resp.getMessage(), resp.getData());
 
         CreateOrderResult result = new CreateOrderResult();
         result.setCode(resp.getCode());
