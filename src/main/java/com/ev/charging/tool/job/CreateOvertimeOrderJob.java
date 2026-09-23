@@ -20,13 +20,13 @@ import java.util.Map;
  * 3. 调 createOvertimeOrder 生成超时占位费
  */
 @Slf4j
-@XxlJob("createOvertimeOrderJob")
 public class CreateOvertimeOrderJob extends IJobHandler {
 
     /** 超时等待时间（分钟），默认 30 分钟 */
     private static final int OVERTIME_MINUTES = 30;
 
     @Override
+    @XxlJob("createOvertimeOrderJob")
     public ReturnT<String> execute(String param) throws Exception {
         String phone = null;
         try {
