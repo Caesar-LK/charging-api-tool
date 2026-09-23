@@ -8,6 +8,7 @@ public class LoginResult {
     private String message;
     private String phone;
     private int status;
+    private Integer httpStatus;
     private String token;
     private String tempToken;
 
