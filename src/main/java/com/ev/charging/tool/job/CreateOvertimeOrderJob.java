@@ -1,11 +1,10 @@
-package com.ev.charging.job;
+package com.ev.charging.tool.job;
 
 import com.ev.charging.tool.service.ChargeOrderService;
 import com.ev.charging.tool.util.LoginContext;
+import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.IJobHandler;
-import com.xxl.job.core.biz.model.ReturnT;
-import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -20,13 +19,14 @@ import java.util.Map;
  * 3. 调 createOvertimeOrder 生成超时占位费
  */
 @Slf4j
-public class CreateOvertimeOrderJob extends IJobHandler {
+public class CreateOvertimeOrderJob implements IJobHandler {
+
+    private final ChargeOrderService chargeOrderService = new ChargeOrderService();
 
     /** 超时等待时间（分钟），默认 30 分钟 */
     private static final int OVERTIME_MINUTES = 30;
 
     @Override
-    @XxlJob("createOvertimeOrderJob")
     public ReturnT<String> execute(String param) throws Exception {
         String phone = null;
         try {
@@ -36,7 +36,7 @@ public class CreateOvertimeOrderJob extends IJobHandler {
             String qrCode = params.get("qrCode");
 
             // 1. 创建充电订单
-            Map<String, Object> result = ChargeOrderService.createOrder(null, null, qrCode, areaCode);
+            Map<String, Object> result = chargeOrderService.createOrder(null, null, qrCode, areaCode);
             if (!Boolean.TRUE.equals(result.get("success"))) {
                 String error = (String) result.get("error");
                 log.warn("[占位费] 创建充电订单失败: {}", error);
