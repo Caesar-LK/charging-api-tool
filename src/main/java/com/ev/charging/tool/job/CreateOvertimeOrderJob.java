@@ -2,9 +2,10 @@ package com.ev.charging.job;
 
 import com.ev.charging.tool.service.ChargeOrderService;
 import com.ev.charging.tool.util.LoginContext;
-import com.xxl.job.core.context.XxlJobContext;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.IJobHandler;
+import com.xxl.job.core.handler.annotation.ReturnT;
+import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import java.util.Map;
  * 3. 调 createOvertimeOrder 生成超时占位费
  */
 @Slf4j
+@XxlJob("createOvertimeOrderJob")
 public class CreateOvertimeOrderJob extends IJobHandler {
 
     /** 超时等待时间（分钟），默认 30 分钟 */
