@@ -5,30 +5,24 @@ import com.ev.charging.tool.util.LoginContext;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.IJobHandler;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * 超市占位费生成 JobHandler。
- *
- * 流程：
- * 1. 调充电订单接口创建充电订单
- * 2. 等待 X 分钟（占位超时时间）
- * 3. 调 createOvertimeOrder 生成超时占位费
  */
-@Slf4j
 public class CreateOvertimeOrderJob implements IJobHandler {
 
-    /** 超时等待时间（分钟），默认 30 分钟 */
+    private static final Logger log = LoggerFactory.getLogger(CreateOvertimeOrderJob.class);
     private static final int OVERTIME_MINUTES = 30;
 
     @Override
     public ReturnT<String> execute(String param) throws Exception {
         String phone = null;
         try {
-            // 解析参数
             Map<String, String> params = parseParam(param);
             String areaCode = params.getOrDefault("areaCode", "320100");
             String qrCode = params.get("qrCode");
@@ -69,9 +63,6 @@ public class CreateOvertimeOrderJob implements IJobHandler {
         }
     }
 
-    /**
-     * 解析 Job 参数（JSON 格式）。
-     */
     private Map<String, String> parseParam(String param) {
         Map<String, String> map = new HashMap<>();
         if (param != null && !param.trim().isEmpty()) {
