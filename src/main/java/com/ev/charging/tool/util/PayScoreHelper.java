@@ -67,13 +67,41 @@ public class PayScoreHelper {
             throw new IllegalStateException("创建支付分周期失败: " + orderResult.getCode() + " " + orderResult.getMessage());
         }
 
-        // 直接用 createOrder 响应中的 cycleCode 构造周期对象
+        // 从数据库查询 cycle_code
+        String cycleCode = queryCycleCodeByOutOrderNo(orderResult.getOutOrderNo());
+        if (cycleCode == null || cycleCode.isEmpty()) {
+            throw new IllegalStateException("创建成功但数据库中查询不到 cycle_code: outOrderNo=" + orderResult.getOutOrderNo());
+        }
+
+        // 调 mock 回调完成授权
+        boolean authorized = PayScoreModule.mockCallback(cycleCode);
+        log.info("[支付分] mockCallback: cycleCode={}, authorized={}", cycleCode, authorized);
+
         PayScoreCycle cycle = new PayScoreCycle();
         cycle.chargeUserId = userId;
         cycle.outOrderNo = orderResult.getOutOrderNo();
-        cycle.cycleCode = orderResult.getCycleCode();
+        cycle.cycleCode = cycleCode;
         cycle.wxState = "DOING";
         return cycle;
+    }
+
+    /**
+     * 通过 outOrderNo 从数据库查询 cycle_code
+     */
+    private static String queryCycleCodeByOutOrderNo(String outOrderNo) {
+        String url = "jdbc:mysql://175.27.229.195:3306/charge-dev?useUnicode=true&characterEncoding=utf8&useSSL=false";
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, "root", "CNniiYEp1JJbPidn");
+             java.sql.PreparedStatement stmt = conn.prepareStatement(
+                     "SELECT cycle_code FROM charge_user_pay_score WHERE out_order_no = ? ORDER BY id DESC LIMIT 1")) {
+            stmt.setString(1, outOrderNo);
+            java.sql.ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("cycle_code");
+            }
+        } catch (Exception e) {
+            log.warn("[支付分] 查询 cycle_code 失败: outOrderNo={}, error={}", outOrderNo, e.getMessage());
+        }
+        return null;
     }
 
     /**
