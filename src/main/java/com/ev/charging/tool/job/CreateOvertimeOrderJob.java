@@ -2,37 +2,41 @@ package com.ev.charging.tool.job;
 
 import com.ev.charging.tool.service.ChargeOrderService;
 import com.ev.charging.tool.util.LoginContext;
-import com.xxl.job.core.biz.model.ReturnT;
-import com.xxl.job.core.context.XxlJobHelper;
-import com.xxl.job.core.handler.IJobHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 超市占位费生成 JobHandler。
+ * 超市占位费生成定时任务。
+ *
+ * 流程：
+ * 1. 调充电订单接口创建充电订单
+ * 2. 等待 X 分钟（占位超时时间）
+ * 3. 调 createOvertimeOrder 生成超时占位费
  */
-public class CreateOvertimeOrderJob implements IJobHandler {
+@Slf4j
+@Component
+public class CreateOvertimeOrderJob {
 
-    private static final Logger log = LoggerFactory.getLogger(CreateOvertimeOrderJob.class);
+    /** 超时等待时间（分钟），默认 30 分钟 */
     private static final int OVERTIME_MINUTES = 30;
 
-    public ReturnT<String> execute(String param) throws Exception {
+    /**
+     * 定时任务入口。
+     * CRON 表达式在 XXL-JOB Admin 控制台配置。
+     */
+    @Scheduled(cron = "0 */5 * * * ?")
+    public void execute() {
         String phone = null;
         try {
-            Map<String, String> params = parseParam(param);
-            String areaCode = params.getOrDefault("areaCode", "320100");
-            String qrCode = params.get("qrCode");
-
             // 1. 创建充电订单
-            ChargeOrderService chargeOrderService = new ChargeOrderService();
-            Map<String, Object> result = chargeOrderService.createOrder(null, null, qrCode, areaCode);
+            Map<String, Object> result = new ChargeOrderService().createOrder(null, null, null, "320100");
             if (!Boolean.TRUE.equals(result.get("success"))) {
                 String error = (String) result.get("error");
                 log.warn("[占位费] 创建充电订单失败: {}", error);
-                return new ReturnT<>(ReturnT.FAIL_CODE, "创建充电订单失败: " + error);
+                return;
             }
 
             Map<String, Object> data = (Map<String, Object>) result.get("data");
@@ -45,33 +49,19 @@ public class CreateOvertimeOrderJob implements IJobHandler {
             Thread.sleep(OVERTIME_MINUTES * 60 * 1000L);
 
             // 3. 调用 createOvertimeOrder 接口
-            String url = "https://charge-dev.jieyoucloud.com/charge-pay/mock/wxpayscore/callback"
-                    + "?billNo=" + orderId + "&billSource=5";
+            String url = com.ev.charging.tool.util.Config.getBaseUrl()
+                    + "/api/charge/orderTest/createOvertimeOrder?orderId=" + orderId;
             var resp = com.ev.charging.tool.util.HttpClient.getJson(url, LoginContext.getToken());
             log.info("[占位费-mock] orderId={}, code={}, message={}",
                     orderId, resp.getCode(), resp.getMessage());
 
             if ("200".equals(resp.getCode())) {
-                return IJobHandler.SUCCESS;
+                log.info("[占位费] 执行成功: orderId={}", orderId);
             } else {
-                return new ReturnT<>(ReturnT.FAIL_CODE, "createOvertimeOrder 失败: " + resp.getMessage());
+                log.warn("[占位费] createOvertimeOrder 失败: {}", resp.getMessage());
             }
         } catch (Exception e) {
             log.error("[占位费] 执行失败: phone={}, error={}", phone, e.getMessage(), e);
-            return new ReturnT<>(ReturnT.FAIL_CODE, "执行异常: " + e.getMessage());
         }
-    }
-
-    private Map<String, String> parseParam(String param) {
-        Map<String, String> map = new HashMap<>();
-        if (param != null && !param.trim().isEmpty()) {
-            try {
-                com.google.gson.JsonObject obj = new com.google.gson.JsonParser().parse(param).getAsJsonObject();
-                obj.entrySet().forEach(e -> map.put(e.getKey(), e.getValue().getAsString()));
-            } catch (Exception e) {
-                XxlJobHelper.log("参数解析失败: {}", param);
-            }
-        }
-        return map;
     }
 }
