@@ -284,12 +284,18 @@ public class ChargeOrderService {
      * GET https://charge-dev.jieyoucloud.com/charge/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=xxx
      */
     private void triggerXxlJobOvertimeBill(long orderId) {
-        try {
-            String url = Config.getBaseUrl() + "/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=" + orderId;
-            ApiResponse<?> resp = HttpClient.getJson(url, LoginContext.getToken());
-            // 使用 Gson 直接解析响应，避免依赖 Lombok 生成的 getter
+        String url = Config.getBaseUrl() + "/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=" + orderId;
+        try (java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient()) {
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(url))
+                    .GET()
+                    .header("token", LoginContext.getToken())
+                    .build();
+            java.net.http.HttpResponse<String> response = client.send(request,
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            // 手动解析 JSON 响应
             com.google.gson.JsonObject jsonResp = com.google.gson.JsonParser.parseString(
-                    resp.getData() != null ? resp.getData().toString() : "{}").getAsJsonObject();
+                    response.body() != null ? response.body() : "{}").getAsJsonObject();
             String code = jsonResp.has("code") ? jsonResp.get("code").getAsString() : "";
             String message = jsonResp.has("message") ? jsonResp.get("message").getAsString() : "";
             log.info("[XXL-JOB] 超时占位费任务触发: orderId={}, code={}, message={}",
