@@ -1,5 +1,6 @@
 package com.ev.charging.tool.service;
 
+import com.ev.charging.tool.util.Config;
 import com.ev.charging.tool.util.LoginContext;
 import com.ev.charging.tool.util.PayScoreHelper;
 import com.ev.charging.tool.util.PayScoreHelper.AuthorizedUser;
