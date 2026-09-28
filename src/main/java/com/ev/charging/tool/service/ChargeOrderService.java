@@ -180,10 +180,7 @@ public class ChargeOrderService {
 
             log.info("[充电订单] 充电已发起: orderNo={}", charged.getOrderNo());
 
-            // 9. 触发 XXL-JOB 超时占位费任务
-            triggerXxlJobOvertimeBill(charged.getOrderId());
-
-            // 10. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
+            // 9. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
             Map<String, Object> data = new HashMap<>();
             data.put("phone", account.getPhone());
             data.put("idName", idName != null ? idName : "");
@@ -215,10 +212,18 @@ public class ChargeOrderService {
     /**
      * 创建充电订单并生成超时占位费。
      * 入参与 createOrder 一致。
-     * 注意：createOrder 内部已包含 triggerXxlJobOvertimeBill 调用，此处直接复用。
      */
     public Map<String, Object> createOvertimeOrder(String phone, String code, String qrCode, String areaCode) {
-        return createOrder(phone, code, qrCode, areaCode);
+        Map<String, Object> orderResult = createOrder(phone, code, qrCode, areaCode);
+        if (!Boolean.TRUE.equals(orderResult.get("success"))) {
+            return orderResult;
+        }
+
+        Map<String, Object> data = (Map<String, Object>) orderResult.get("data");
+        long orderId = Long.parseLong(String.valueOf(data.get("orderId")));
+        triggerXxlJobOvertimeBill(orderId);
+
+        return orderResult;
     }
 
     private long resolveConnectorId(String qrCode) {
