@@ -53,6 +53,6 @@ public class CreateOvertimeOrderJob {
     @Scheduled(cron = "0 */5 * * * ?")
     public void scheduledExecute() {
         // 定时任务逻辑（如需要）
-        log.debug("[占位费] 定时任务触发")
+        log.debug("[占位费] 定时任务触发");
     }
 }
