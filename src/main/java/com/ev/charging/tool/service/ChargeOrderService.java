@@ -179,8 +179,10 @@ public class ChargeOrderService {
 
             log.info("[充电订单] 充电已发起: orderNo={}", charged.getOrderNo());
 
+            // 9. 触发 XXL-JOB 超时占位费任务
+            triggerXxlJobOvertimeBill(charged.getOrderId());
 
-            // 9. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
+            // 10. 返回订单信息（用 HashMap 避免 Map.of() 的 null 限制）
             Map<String, Object> data = new HashMap<>();
             data.put("phone", account.getPhone());
             data.put("idName", idName != null ? idName : "");
@@ -275,5 +277,21 @@ public class ChargeOrderService {
             }
         }
         return ids.stream().mapToLong(Long::longValue).toArray();
+    }
+
+    /**
+     * 触发 XXL-JOB 超时占位费任务。
+     * GET https://charge-dev.jieyoucloud.com/charge/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=xxx
+     */
+    private void triggerXxlJobOvertimeBill(long orderId) {
+        try {
+            String url = Config.getBaseUrl() + "/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=" + orderId;
+            ApiResponse<?> resp = HttpClient.getJson(url, LoginContext.getToken());
+            log.info("[XXL-JOB] 超时占位费任务触发: orderId={}, code={}, message={}",
+                    orderId, resp.getCode(), resp.getMessage());
+        } catch (Exception e) {
+            // XXL-JOB 触发失败不影响充电订单主流程
+            log.warn("[XXL-JOB] 超时占位费任务触发失败: orderId={}, error={}", orderId, e.getMessage());
+        }
     }
 }
