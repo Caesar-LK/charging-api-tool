@@ -44,4 +44,25 @@ public class ChargeOrderController {
         }
     }
 
+    /**
+     * 创建充电订单并生成超时占位费。
+     * 入参与 /api/charge-order 一致。
+     */
+    @PostMapping("/overtime-order")
+    public ResponseEntity<Map<String, Object>> createOvertimeOrder(@RequestBody Map<String, Object> request) {
+        String phone = (String) request.get("phone");
+        String code = (String) request.get("code");
+        String qrCode = (String) request.get("qrCode");
+        String areaCode = (String) request.get("areaCode");
+        log.info("[API] POST /api/overtime-order, phone={}, code={}, qrCode={}, areaCode={}", phone, code != null ? "已传" : "未传", qrCode, areaCode);
+
+        Map<String, Object> result = chargeOrderService.createOvertimeOrder(phone, code, qrCode, areaCode);
+
+        if (Boolean.TRUE.equals(result.get("success"))) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+
 }

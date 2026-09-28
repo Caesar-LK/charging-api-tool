@@ -212,6 +212,25 @@ public class ChargeOrderService {
         }
     }
 
+    /**
+     * 创建充电订单并生成超时占位费。
+     * 入参与 createOrder 一致。
+     */
+    public Map<String, Object> createOvertimeOrder(String phone, String code, String qrCode, String areaCode) {
+        // 1. 创建充电订单
+        Map<String, Object> orderResult = createOrder(phone, code, qrCode, areaCode);
+        if (!Boolean.TRUE.equals(orderResult.get("success"))) {
+            return orderResult;
+        }
+
+        // 2. 生成超时占位费
+        Map<String, Object> data = (Map<String, Object>) orderResult.get("data");
+        long orderId = Long.parseLong(String.valueOf(data.get("orderId")));
+        triggerXxlJobOvertimeBill(orderId);
+
+        return orderResult;
+    }
+
     private long resolveConnectorId(String qrCode) {
         if (qrCode != null && !qrCode.trim().isEmpty()) {
             ParseQrcodeResult parsed = EquipmentModule.parseQrcode(qrCode.trim());
