@@ -215,20 +215,10 @@ public class ChargeOrderService {
     /**
      * 创建充电订单并生成超时占位费。
      * 入参与 createOrder 一致。
+     * 注意：createOrder 内部已包含 triggerXxlJobOvertimeBill 调用，此处直接复用。
      */
     public Map<String, Object> createOvertimeOrder(String phone, String code, String qrCode, String areaCode) {
-        // 1. 创建充电订单
-        Map<String, Object> orderResult = createOrder(phone, code, qrCode, areaCode);
-        if (!Boolean.TRUE.equals(orderResult.get("success"))) {
-            return orderResult;
-        }
-
-        // 2. 生成超时占位费
-        Map<String, Object> data = (Map<String, Object>) orderResult.get("data");
-        long orderId = Long.parseLong(String.valueOf(data.get("orderId")));
-        triggerXxlJobOvertimeBill(orderId);
-
-        return orderResult;
+        return createOrder(phone, code, qrCode, areaCode);
     }
 
     private long resolveConnectorId(String qrCode) {
