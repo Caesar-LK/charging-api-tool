@@ -209,23 +209,6 @@ public class ChargeOrderService {
         }
     }
 
-    /**
-     * 创建充电订单并生成超时占位费。
-     * 入参与 createOrder 一致。
-     */
-    public Map<String, Object> createOvertimeOrder(String phone, String code, String qrCode, String areaCode) {
-        Map<String, Object> orderResult = createOrder(phone, code, qrCode, areaCode);
-        if (!Boolean.TRUE.equals(orderResult.get("success"))) {
-            return orderResult;
-        }
-
-        Map<String, Object> data = (Map<String, Object>) orderResult.get("data");
-        long orderId = Long.parseLong(String.valueOf(data.get("orderId")));
-        triggerXxlJobOvertimeBill(orderId);
-
-        return orderResult;
-    }
-
     private long resolveConnectorId(String qrCode) {
         if (qrCode != null && !qrCode.trim().isEmpty()) {
             ParseQrcodeResult parsed = EquipmentModule.parseQrcode(qrCode.trim());
@@ -298,7 +281,7 @@ public class ChargeOrderService {
      * 触发 XXL-JOB 超时占位费任务。
      * GET https://charge-dev.jieyoucloud.com/charge/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=xxx
      */
-    private void triggerXxlJobOvertimeBill(long orderId) {
+    public void triggerXxlJobOvertimeBill(long orderId) {
         String url = Config.getBaseUrl() + "/orderTest/createOvertimeOrder?orderId=" + orderId;
         try {
             org.apache.http.client.methods.HttpGet request = new org.apache.http.client.methods.HttpGet(url);
