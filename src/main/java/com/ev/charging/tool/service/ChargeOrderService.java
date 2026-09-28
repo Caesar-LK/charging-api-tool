@@ -285,7 +285,7 @@ public class ChargeOrderService {
      * GET https://charge-dev.jieyoucloud.com/charge/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=xxx
      */
     private void triggerXxlJobOvertimeBill(long orderId) {
-        String url = Config.getBaseUrl() + "/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=" + orderId;
+        String url = Config.getBaseUrl() + "/orderTest/createOvertimeOrder?orderId=" + orderId;
         try {
             org.apache.http.client.methods.HttpGet request = new org.apache.http.client.methods.HttpGet(url);
             request.setHeader("token", LoginContext.getToken());
@@ -297,12 +297,12 @@ public class ChargeOrderService {
                     body != null ? body : "{}").getAsJsonObject();
             String code = jsonResp.has("code") ? jsonResp.get("code").getAsString() : "";
             String message = jsonResp.has("message") ? jsonResp.get("message").getAsString() : "";
-            log.info("[XXL-JOB] 超时占位费任务触发: orderId={}, code={}, message={}",
+            log.info("[占位费] 超时占位费订单生成: orderId={}, code={}, message={}",
                     orderId, code, message);
             client.close();
         } catch (Exception e) {
-            // XXL-JOB 触发失败不影响充电订单主流程
-            log.warn("[XXL-JOB] 超时占位费任务触发失败: orderId={}, error={}", orderId, e.getMessage());
+            // 占位费生成失败不影响充电订单主流程
+            log.warn("[占位费] 超时占位费订单生成失败: orderId={}, error={}", orderId, e.getMessage());
         }
     }
 }
