@@ -287,8 +287,13 @@ public class ChargeOrderService {
         try {
             String url = Config.getBaseUrl() + "/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=" + orderId;
             ApiResponse<?> resp = HttpClient.getJson(url, LoginContext.getToken());
+            // 使用 Gson 直接解析响应，避免依赖 Lombok 生成的 getter
+            com.google.gson.JsonObject jsonResp = com.google.gson.JsonParser.parseString(
+                    resp.getData() != null ? resp.getData().toString() : "{}").getAsJsonObject();
+            String code = jsonResp.has("code") ? jsonResp.get("code").getAsString() : "";
+            String message = jsonResp.has("message") ? jsonResp.get("message").getAsString() : "";
             log.info("[XXL-JOB] 超时占位费任务触发: orderId={}, code={}, message={}",
-                    orderId, resp.getCode(), resp.getMessage());
+                    orderId, code, message);
         } catch (Exception e) {
             // XXL-JOB 触发失败不影响充电订单主流程
             log.warn("[XXL-JOB] 超时占位费任务触发失败: orderId={}, error={}", orderId, e.getMessage());
