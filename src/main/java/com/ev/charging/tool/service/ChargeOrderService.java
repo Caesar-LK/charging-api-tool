@@ -282,24 +282,41 @@ public class ChargeOrderService {
      * GET https://charge-dev.jieyoucloud.com/charge/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=xxx
      */
     public void triggerXxlJobOvertimeBill(long orderId) {
-        String url = Config.getBaseUrl() + "/orderTest/createOvertimeOrder?orderId=" + orderId;
+        // Step 1: 创建超时占位费订单
+        String createUrl = Config.getBaseUrl() + "/orderTest/createOvertimeOrder?orderId=" + orderId;
         try {
-            org.apache.http.client.methods.HttpGet request = new org.apache.http.client.methods.HttpGet(url);
+            org.apache.http.client.methods.HttpGet request = new org.apache.http.client.methods.HttpGet(createUrl);
             request.setHeader("token", LoginContext.getToken());
             org.apache.http.impl.client.CloseableHttpClient client = org.apache.http.impl.client.HttpClients.createDefault();
             org.apache.http.HttpResponse response = client.execute(request);
             String body = org.apache.http.util.EntityUtils.toString(response.getEntity(), "UTF-8");
-            // 手动解析 JSON 响应
             com.google.gson.JsonObject jsonResp = com.google.gson.JsonParser.parseString(
                     body != null ? body : "{}").getAsJsonObject();
             String code = jsonResp.has("code") ? jsonResp.get("code").getAsString() : "";
             String message = jsonResp.has("message") ? jsonResp.get("message").getAsString() : "";
-            log.info("[占位费] 超时占位费订单生成: orderId={}, code={}, message={}",
-                    orderId, code, message);
+            log.info("[占位费] 创建超时占位费订单: orderId={}, code={}, message={}", orderId, code, message);
             client.close();
         } catch (Exception e) {
-            // 占位费生成失败不影响充电订单主流程
-            log.warn("[占位费] 超时占位费订单生成失败: orderId={}, error={}", orderId, e.getMessage());
+            log.warn("[占位费] 创建超时占位费订单失败: orderId={}, error={}", orderId, e.getMessage());
+            return;
+        }
+
+        // Step 2: 触发 XXL-JOB 定时任务处理订单
+        String jobUrl = Config.getBaseUrl() + "/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=" + orderId;
+        try {
+            org.apache.http.client.methods.HttpGet request = new org.apache.http.client.methods.HttpGet(jobUrl);
+            request.setHeader("token", LoginContext.getToken());
+            org.apache.http.impl.client.CloseableHttpClient client = org.apache.http.impl.client.HttpClients.createDefault();
+            org.apache.http.HttpResponse response = client.execute(request);
+            String body = org.apache.http.util.EntityUtils.toString(response.getEntity(), "UTF-8");
+            com.google.gson.JsonObject jsonResp = com.google.gson.JsonParser.parseString(
+                    body != null ? body : "{}").getAsJsonObject();
+            String code = jsonResp.has("code") ? jsonResp.get("code").getAsString() : "";
+            String message = jsonResp.has("message") ? jsonResp.get("message").getAsString() : "";
+            log.info("[XXL-JOB] 触发超时占位费任务: orderId={}, code={}, message={}", orderId, code, message);
+            client.close();
+        } catch (Exception e) {
+            log.warn("[XXL-JOB] 触发超时占位费任务失败: orderId={}, error={}", orderId, e.getMessage());
         }
     }
 }
