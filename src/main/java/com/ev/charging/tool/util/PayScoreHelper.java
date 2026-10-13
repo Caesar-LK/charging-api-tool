@@ -14,6 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PayScoreHelper {
 
+    private static final String CHARGE_DB_URL = "jdbc:mysql://175.27.229.195:3306/charge-dev?useUnicode=true&characterEncoding=utf8&useSSL=false";
+    private static final String CHARGE_DB_USER = "root";
+    private static final String CHARGE_DB_PASSWORD = "CNniiYEp1JJbPidn";
+
     private PayScoreHelper() {
     }
 
@@ -89,8 +93,7 @@ public class PayScoreHelper {
      * 通过 outOrderNo 从数据库查询 cycle_code
      */
     private static String queryCycleCodeByOutOrderNo(String outOrderNo) {
-        String url = "jdbc:mysql://175.27.229.195:3306/charge-dev?useUnicode=true&characterEncoding=utf8&useSSL=false";
-        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, "root", "CNniiYEp1JJbPidn");
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(CHARGE_DB_URL, CHARGE_DB_USER, CHARGE_DB_PASSWORD);
              java.sql.PreparedStatement stmt = conn.prepareStatement(
                      "SELECT cycle_code FROM charge_user_pay_score WHERE out_order_no = ? ORDER BY id DESC LIMIT 1")) {
             stmt.setString(1, outOrderNo);
@@ -100,6 +103,25 @@ public class PayScoreHelper {
             }
         } catch (Exception e) {
             log.warn("[支付分] 查询 cycle_code 失败: outOrderNo={}, error={}", outOrderNo, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 根据充电订单号查询 charge_order.id。
+     */
+    public static Long queryOrderIdByOrderNo(String orderNo) {
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(
+                     CHARGE_DB_URL, CHARGE_DB_USER, CHARGE_DB_PASSWORD);
+             java.sql.PreparedStatement stmt = conn.prepareStatement(
+                     "SELECT t.* FROM charge_order t WHERE t.order_no = ? LIMIT 1")) {
+            stmt.setString(1, orderNo);
+            java.sql.ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getLong("id");
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("按订单号查询订单失败: " + e.getMessage(), e);
         }
         return null;
     }

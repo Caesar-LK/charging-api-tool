@@ -278,6 +278,24 @@ public class ChargeOrderService {
     }
 
     /**
+     * 支持订单 ID 或订单号。订单号通常为长数字或包含非数字字符。
+     */
+    public long resolveOrderId(String orderIdentifier) {
+        if (orderIdentifier == null || orderIdentifier.trim().isEmpty()) {
+            throw new IllegalArgumentException("请输入订单 ID 或订单号");
+        }
+        String value = orderIdentifier.trim();
+        if (value.matches("\\d{1,12}")) {
+            return Long.parseLong(value);
+        }
+        Long orderId = PayScoreHelper.queryOrderIdByOrderNo(value);
+        if (orderId == null) {
+            throw new IllegalArgumentException("未查询到订单号对应的充电订单: " + value);
+        }
+        return orderId;
+    }
+
+    /**
      * 触发 XXL-JOB 超时占位费任务。
      * GET https://charge-dev.jieyoucloud.com/charge/xxl-job/CHARGE_OVERTIME_BILL_JOB?orderId=xxx
      */

@@ -47,18 +47,21 @@ public class ChargeOrderController {
 
     /**
      * 生成超时占位费订单。
-     * 入参：充电订单的 orderId。
+     * 入参：充电订单 ID 或订单号。
      */
     @PostMapping("/overtime-order")
     public ResponseEntity<Map<String, Object>> createOvertimeOrder(@RequestBody Map<String, Object> request) {
-        String orderId = String.valueOf(request.get("orderId"));
-        log.info("[API] POST /api/overtime-order, orderId={}", orderId);
+        String orderIdentifier = request.get("orderId") == null
+                ? "" : String.valueOf(request.get("orderId")).trim();
+        log.info("[API] POST /api/overtime-order, orderIdentifier={}", orderIdentifier);
 
         try {
-            chargeOrderService.triggerXxlJobOvertimeBill(Long.parseLong(orderId));
+            long orderId = chargeOrderService.resolveOrderId(orderIdentifier);
+            chargeOrderService.triggerXxlJobOvertimeBill(orderId);
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
-            result.put("message", "超时占位费订单生成成功");
+            result.put("message", "超时占位费订单生成成功，订单ID：" + orderId);
+            result.put("orderId", orderId);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             Map<String, Object> result = new HashMap<>();
