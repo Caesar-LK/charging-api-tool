@@ -100,7 +100,7 @@ public class ChargeOrderController {
 
     /**
      * VIN 码充电（完整流程）。
-     * 查数据库 charge_vehicle_pnc → 改 platform_id = 6 → 发起充电。
+     * 查数据库 charge_vehicle_pnc → 保证 platform_id = 6（已是 6 则跳过）→ 发起充电。
      *
      * @param request { "vin": "VIN码", "connCode": "充电桩编码" }
      * @return 充电结果

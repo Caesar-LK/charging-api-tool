@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * VIN 码充电模块。
- * 流程：查数据库 charge_vehicle_pnc → 改 charge_platform_id = 6 → 调 startCharge
+ * 流程：查数据库 charge_vehicle_pnc → 保证 charge_platform_id = 6 → 调 startCharge
  */
 @Slf4j
 public class VinChargeModule {
@@ -56,7 +56,8 @@ public class VinChargeModule {
     }
 
     /**
-     * 完整流程：查车 → 改 platform_id → 发起充电。
+     * 完整流程：查车 → 保证 platform_id=6 → 发起充电。
+     * 若已有 platform_id=6 的记录则直接复用，不再更新。
      * connCode 由前端传入（桩编码）。
      */
     public static Map<String, Object> execute(String vin, String connCode) {
@@ -70,15 +71,23 @@ public class VinChargeModule {
             return result;
         }
 
-        // 2. 任选一条，改 platform_id = 6
-        Map<String, Object> chosen = vehicles.get(0);
-        long pncId = Long.parseLong(chosen.get("id").toString());
+        // 2. 优先复用已是 platform_id=6 的记录，否则任选一条改为 6
+        Map<String, Object> chosen = findPlatformIdSix(vehicles);
+        boolean alreadyReady = chosen != null;
+        if (!alreadyReady) {
+            chosen = vehicles.get(0);
+        }
+        long pncId = Long.parseLong(String.valueOf(chosen.get("id")));
 
-        boolean updated = updatePlatformId(pncId);
-        if (!updated) {
-            result.put("success", false);
-            result.put("error", "更新 platform_id 失败: pncId=" + pncId);
-            return result;
+        if (!alreadyReady) {
+            boolean updated = updatePlatformId(pncId);
+            if (!updated) {
+                result.put("success", false);
+                result.put("error", "更新 platform_id 失败: pncId=" + pncId);
+                return result;
+            }
+        } else {
+            log.info("[VIN充电] 已是 platform_id=6，跳过更新: pncId={}", pncId);
         }
 
         // 3. 发起充电
@@ -90,5 +99,21 @@ public class VinChargeModule {
 
         log.info("[VIN充电] 完成: vin={}, pncId={}, connCode={}, result={}", vin, pncId, connCode, rawBody);
         return result;
+    }
+
+    /**
+     * 找到已是 platform_id=6 的记录。
+     */
+    private static Map<String, Object> findPlatformIdSix(List<Map<String, Object>> vehicles) {
+        for (Map<String, Object> vehicle : vehicles) {
+            Object platformId = vehicle.get("charge_platform_id");
+            if (platformId instanceof Number && ((Number) platformId).longValue() == 6L) {
+                return vehicle;
+            }
+            if (platformId != null && "6".equals(String.valueOf(platformId).trim())) {
+                return vehicle;
+            }
+        }
+        return null;
     }
 }
