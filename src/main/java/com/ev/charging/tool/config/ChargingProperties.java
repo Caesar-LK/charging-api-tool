@@ -22,4 +22,5 @@ public class ChargingProperties {
     private String smsSalt1;
     private String smsSalt2;
     private String testSmsCode = "666666";
+    private String dbPassword = "__OVERRIDE_IN_LOCAL__";
 }

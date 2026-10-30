@@ -19,7 +19,29 @@ import java.math.BigDecimal;
 @Slf4j
 public class OrderModule {
 
+    private static final String START_CHARGE_URL = "https://charge-dev.jieyoucloud.com/charge-demo/charge/startCharge";
+
     private OrderModule() {
+    }
+
+    /**
+     * 即插即充启动充电（桩 demo 接口）。
+     * GET /charge-demo/charge/startCharge?vin=xxx&amp;connCode=xxx
+     * 返回纯文本 "success" 表示成功，其他值为失败。
+     *
+     * @param vin      车辆 VIN 码（17位）
+     * @param connCode 充电桩连接编码
+     * @return 响应原始 body（"success" 表示成功）
+     */
+    public static String startCharge(String vin, String connCode) {
+        String url = START_CHARGE_URL + "?vin=" + vin + "&connCode=" + connCode;
+        String token = LoginContext.getToken();
+
+        log.info("[即插即充] vin={}, connCode={}", vin, connCode);
+        ApiResponse<JsonElement> resp = HttpClient.getJson(url, token);
+        log.info("[即插即充] httpStatus={}, rawBody={}", resp.getHttpStatus(), resp.getRawBody());
+
+        return resp.getRawBody();
     }
 
     /**

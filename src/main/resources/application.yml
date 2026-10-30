@@ -11,6 +11,7 @@ charging:
   sms-salt1: "T6&wG%3nK!5pD#8sJ$7mH^2vR*9fQ@4zB"
   sms-salt2: "Zx5%Co@8rT#3pK$7fD!9sW^2mQ&4gH*6vJ"
   test-sms-code: "666666"
+  db-password: "__OVERRIDE_IN_LOCAL__"
 
 logging:
   level:

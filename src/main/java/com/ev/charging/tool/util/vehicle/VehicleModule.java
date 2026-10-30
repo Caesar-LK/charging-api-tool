@@ -44,12 +44,22 @@ public class VehicleModule {
 
         if (resp.getData() != null && resp.getData().isJsonObject()) {
             JsonObject data = resp.getData().getAsJsonObject();
-            // 响应结构: {"data":{"id":xxx,"vehicleId":xxx,"chargeVehicleId":xxx,...}}
+            // 个人模式: {"data":{"vehicleId":xxx,"chargeUserId":xxx}}
             if (data.has("vehicleId") && !data.get("vehicleId").isJsonNull()) {
                 result.setVehicleId(data.get("vehicleId").getAsLong());
             }
             if (data.has("chargeUserId") && !data.get("chargeUserId").isJsonNull()) {
                 result.setChargeUserId(data.get("chargeUserId").getAsLong());
+            }
+            // 车队模式: {"data":{"chargeVehicle":{"id":xxx,"chargeUserId":xxx,...}}}
+            if (data.has("chargeVehicle") && data.get("chargeVehicle").isJsonObject()) {
+                JsonObject cv = data.getAsJsonObject("chargeVehicle");
+                if (cv.has("id") && result.getVehicleId() == null) {
+                    result.setVehicleId(cv.get("id").getAsLong());
+                }
+                if (cv.has("chargeUserId") && result.getChargeUserId() == null) {
+                    result.setChargeUserId(cv.get("chargeUserId").getAsLong());
+                }
             }
         }
 

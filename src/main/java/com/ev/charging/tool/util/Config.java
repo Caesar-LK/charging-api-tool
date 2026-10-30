@@ -19,6 +19,7 @@ public class Config {
     private static String realnameInfoPath;
     private static String uploadPath;
     private static String obsSignPath;
+    private static String dbPassword;
 
     private Config() {
     }
@@ -35,6 +36,7 @@ public class Config {
         realnameInfoPath = props.getRealnameInfoPath();
         uploadPath = props.getUploadPath();
         obsSignPath = props.getObsSignPath();
+        dbPassword = props.getDbPassword();
         log.info("[Config] 初始化完成, baseUrl={}", baseUrl);
     }
 
@@ -124,6 +126,10 @@ public class Config {
 
     public static String getObsFilePathPrefix() {
         return "idcard/";
+    }
+
+    public static String getDbPassword() {
+        return dbPassword;
     }
 
     public static String getIdCardImageDir() {

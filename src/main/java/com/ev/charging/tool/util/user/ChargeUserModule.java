@@ -43,6 +43,22 @@ public class ChargeUserModule {
             if (data.has("userId") && !data.get("userId").isJsonNull()) {
                 result.setUserId(data.get("userId").getAsInt());
             }
+            // 车队信息
+            if (data.has("fleet") && data.get("fleet").isJsonObject()) {
+                JsonObject fleet = data.getAsJsonObject("fleet");
+                if (fleet.has("fleetUserId") && !fleet.get("fleetUserId").isJsonNull()) {
+                    result.setFleetUserId(fleet.get("fleetUserId").getAsLong());
+                }
+                if (fleet.has("fleetName") && !fleet.get("fleetName").isJsonNull()) {
+                    result.setFleetName(fleet.get("fleetName").getAsString());
+                }
+                if (fleet.has("admin")) {
+                    result.setFleetAdmin(fleet.get("admin").getAsBoolean());
+                }
+                if (fleet.has("hasFleet")) {
+                    result.setHasFleet(fleet.get("hasFleet").getAsBoolean());
+                }
+            }
         }
 
         return result;
@@ -58,6 +74,10 @@ public class ChargeUserModule {
         private String nickName;
         private Boolean identified;
         private Integer userId;
+        private Long fleetUserId;
+        private String fleetName;
+        private Boolean fleetAdmin;
+        private Boolean hasFleet;
 
         public boolean isSuccess() {
             return "200".equals(code);

@@ -46,6 +46,11 @@ public class HttpClient {
     }
 
     public static ApiResponse<JsonElement> postJson(String url, String jsonBody, String token) {
+        return postJson(url, jsonBody, token, null);
+    }
+
+    public static ApiResponse<JsonElement> postJson(String url, String jsonBody, String token,
+                                                     java.util.Map<String, String> headers) {
         log.debug("[POST] url={}, hasToken={}", url, token != null);
         if (jsonBody != null) {
             log.debug("[POST] body={}", jsonBody);
@@ -56,7 +61,7 @@ public class HttpClient {
             entity.setContentType("application/json");
             httpPost.setEntity(entity);
         }
-        return execute(httpPost, token);
+        return execute(httpPost, token, headers);
     }
 
     public static ApiResponse<JsonElement> getJson(String url) {
@@ -64,8 +69,13 @@ public class HttpClient {
     }
 
     public static ApiResponse<JsonElement> getJson(String url, String token) {
+        return getJson(url, token, null);
+    }
+
+    public static ApiResponse<JsonElement> getJson(String url, String token,
+                                                    java.util.Map<String, String> headers) {
         log.debug("[GET] url={}, hasToken={}", url, token != null);
-        return execute(new HttpGet(url), token);
+        return execute(new HttpGet(url), token, headers);
     }
 
     public static ApiResponse<JsonElement> postMultipart(String url, File file, String fileField, String token) {
@@ -110,8 +120,21 @@ public class HttpClient {
     }
 
     private static ApiResponse<JsonElement> execute(HttpRequestBase request, String token) {
+        return execute(request, token, null);
+    }
+
+    private static ApiResponse<JsonElement> execute(HttpRequestBase request, String token,
+                                                     java.util.Map<String, String> headers) {
         if (token != null) {
             request.setHeader("token", token);
+        }
+        if (FleetContext.isFleetMode()) {
+            request.setHeader("X-Fleet-Identity", "1");
+        }
+        if (headers != null) {
+            for (java.util.Map.Entry<String, String> e : headers.entrySet()) {
+                request.setHeader(e.getKey(), e.getValue());
+            }
         }
         if (request.getFirstHeader("Content-Type") == null) {
             request.setHeader("Content-Type", "application/json");
@@ -135,6 +158,12 @@ public class HttpClient {
     private static ApiResponse<JsonElement> executeMultipart(HttpPost request, String token) {
         if (token != null) {
             request.setHeader("token", token);
+        }
+        if (FleetContext.isFleetMode()) {
+            request.setHeader("X-Fleet-Identity", "1");
+        }
+        if (request.getFirstHeader("Content-Type") == null) {
+            request.setHeader("Content-Type", "application/json");
         }
         try (CloseableHttpResponse response = HTTP_CLIENT.execute(request)) {
             int httpStatus = response.getStatusLine().getStatusCode();

@@ -1,6 +1,7 @@
 package com.ev.charging.tool.service;
 
 import com.ev.charging.tool.util.Config;
+import com.ev.charging.tool.util.FleetContext;
 import com.ev.charging.tool.util.LoginContext;
 import com.ev.charging.tool.util.PayScoreHelper;
 import com.ev.charging.tool.util.PayScoreHelper.AuthorizedUser;
@@ -12,6 +13,7 @@ import com.ev.charging.tool.util.VehicleDataGenerator;
 import com.ev.charging.tool.util.VehicleDataGenerator.VehicleData;
 import com.ev.charging.tool.util.equipment.EquipmentModule;
 import com.ev.charging.tool.util.equipment.EquipmentModule.ParseQrcodeResult;
+import com.ev.charging.tool.util.fleet.FleetModule;
 import com.ev.charging.tool.util.order.OrderModule;
 import com.ev.charging.tool.util.order.OrderModule.StartChargingResult;
 import com.ev.charging.tool.util.order.OrderModule.StopChargingResult;
@@ -22,9 +24,13 @@ import com.ev.charging.tool.util.realname.RealNameInfoModule;
 import com.ev.charging.tool.util.realname.RealNameInfoResult;
 import com.ev.charging.tool.util.payscore.PayScoreModule;
 import com.ev.charging.tool.util.user.ChargeUserModule;
+import com.ev.charging.tool.util.HttpClient;
 import com.ev.charging.tool.util.vehicle.VehicleModule;
+import com.google.gson.JsonObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.Random;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +60,8 @@ public class ChargeOrderService {
      * @param areaCode    定位区划码（可选，默认 320115）
      * @return 订单信息
      */
-    public Map<String, Object> createOrder(String phone, String code, String qrCode, String areaCode) {
+    public Map<String, Object> createOrder(String phone, String code, String qrCode, String areaCode,
+                                             Long fleetVehicleId, String fleetPlateNumber) {
         if (areaCode == null || areaCode.isEmpty()) {
             areaCode = DEFAULT_AREA_CODE;
         }
@@ -116,36 +123,74 @@ public class ChargeOrderService {
             }
             int userId = userIdObj;
 
-            // 4. 加车（已有车则跳过）
+            // 4. 车辆准备
             long vehicleId;
             String plateNumber;
-            var existingVehicles = VehicleModule.getMyVehicles();
-            if ("200".equals(existingVehicles.getCode())
-                    && existingVehicles.getVehicleList() != null
-                    && !existingVehicles.getVehicleList().isEmpty()) {
-                // 已有车辆，使用第一辆
-                var first = existingVehicles.getVehicleList().get(0).getAsJsonObject();
-                vehicleId = first.get("vehicleId").getAsLong();
-                plateNumber = first.has("plateNumber") ? first.get("plateNumber").getAsString() : "";
-                log.info("[充电订单] 账号已有车辆，跳过加车: vehicleId={}, plate={}", vehicleId, plateNumber);
-            } else {
-                // 无车，添加新车
-                VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
-                vehicleData.setName(idName);
-                var saved = VehicleModule.saveVehicle(vehicleData);
-                if (!"200".equals(saved.getCode())) {
-                    throw new RuntimeException("添加车辆失败: " + saved.getMessage());
+
+            if (FleetContext.isFleetMode()) {
+                // 车队模式：后端自动选一辆成员的授权车辆
+                var myInfo = ChargeUserModule.getMyInfo();
+                boolean isAdmin = Boolean.TRUE.equals(myInfo.getFleetAdmin());
+                log.info("[充电订单-车队] userId={}, isAdmin={}", myInfo.getUserId(), isAdmin);
+
+                // 尝试1: 管理员用 auth/list
+                String url;
+                if (isAdmin) {
+                    url = Config.getBaseUrl() + "/fleet-vehicle-manage/auth/list?status=1";
+                } else {
+                    // 尝试2: 普通成员用 my-vehicles（带 fleet header）
+                    url = Config.getBaseUrl() + "/chargeUser/my-vehicles?withPnc=true";
                 }
-                var newVehicles = VehicleModule.getMyVehicles();
-                var firstVehicle = newVehicles.getVehicleList().get(0).getAsJsonObject();
-                vehicleId = firstVehicle.get("vehicleId").getAsLong();
-                plateNumber = firstVehicle.has("plateNumber")
-                        ? firstVehicle.get("plateNumber").getAsString() : "";
-                log.info("[充电订单] 加车完成: vehicleId={}, plate={}", vehicleId, plateNumber);
+                var resp = HttpClient.getJson(url, account.getToken(), java.util.Map.of("X-Fleet-Identity", "1"));
+                log.info("[车队] 查车响应 code={} data={}", resp.getCode(),
+                        resp.getData() != null ? resp.getData().toString().substring(0, Math.min(500, resp.getData().toString().length())) : "null");
+
+                if ("200".equals(resp.getCode()) && resp.getData() != null && resp.getData().isJsonArray() && !resp.getData().getAsJsonArray().isEmpty()) {
+                    var chosen = resp.getData().getAsJsonArray().get(0).getAsJsonObject();
+                    vehicleId = chosen.has("vehicleId") ? chosen.get("vehicleId").getAsLong() : 0;
+                    // 兼容不同接口的字段名：plateNumber / vehicleNumber
+                    if (chosen.has("plateNumber") && !chosen.get("plateNumber").isJsonNull()) {
+                        plateNumber = chosen.get("plateNumber").getAsString();
+                    } else if (chosen.has("vehicleNumber") && !chosen.get("vehicleNumber").isJsonNull()) {
+                        plateNumber = chosen.get("vehicleNumber").getAsString();
+                    } else {
+                        plateNumber = "";
+                    }
+                    log.info("[车队] 自动选中: vehicleId={}, plate={}", vehicleId, plateNumber);
+                } else {
+                    throw new RuntimeException("车队没有可用的授权车辆");
+                }
+            } else {
+                // 个人模式：原有逻辑（已有车则用，否则随机加一辆）
+                var existingVehicles = VehicleModule.getMyVehicles();
+                if ("200".equals(existingVehicles.getCode())
+                        && existingVehicles.getVehicleList() != null
+                        && !existingVehicles.getVehicleList().isEmpty()) {
+                    var first = existingVehicles.getVehicleList().get(0).getAsJsonObject();
+                    vehicleId = first.get("vehicleId").getAsLong();
+                    plateNumber = first.has("plateNumber") ? first.get("plateNumber").getAsString() : "";
+                    log.info("[充电订单-个人] 账号已有车辆，跳过加车: vehicleId={}, plate={}", vehicleId, plateNumber);
+                } else {
+                    VehicleData vehicleData = VehicleDataGenerator.generateNevVehicle(false);
+                    vehicleData.setName(idName);
+                    var saved = VehicleModule.saveVehicle(vehicleData);
+                    if (!"200".equals(saved.getCode())) {
+                        throw new RuntimeException("添加车辆失败: " + saved.getMessage());
+                    }
+                    var newVehicles = VehicleModule.getMyVehicles();
+                    var firstVehicle = newVehicles.getVehicleList().get(0).getAsJsonObject();
+                    vehicleId = firstVehicle.get("vehicleId").getAsLong();
+                    plateNumber = firstVehicle.has("plateNumber")
+                            ? firstVehicle.get("plateNumber").getAsString() : "";
+                    log.info("[充电订单-个人] 加车完成: vehicleId={}, plate={}", vehicleId, plateNumber);
+                }
             }
 
-            // 5. 支付分授权（创建周期 → mock 回调）
-            String cycleCode = createAndAuthorizePayScore(account.getPhone(), code);
+            // 5. 支付分授权（仅个人模式需要；车队模式走车队钱包扣款，跳过此步）
+            String cycleCode = null;
+            if (!FleetContext.isFleetMode()) {
+                cycleCode = createAndAuthorizePayScore(account.getPhone(), code);
+            }
 
             // 6. 解析二维码 → connectorId
             long connectorId = resolveConnectorId(qrCode);
@@ -275,6 +320,30 @@ public class ChargeOrderService {
             }
         }
         return ids.stream().mapToLong(Long::longValue).toArray();
+    }
+
+    /**
+     * 即插即充启动充电。
+     *
+     * @param vin      车辆 VIN 码
+     * @param connCode 充电桩连接编码
+     * @return 启动结果（"success" 表示成功）
+     */
+    public Map<String, Object> startCharge(String vin, String connCode) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String rawBody = OrderModule.startCharge(vin, connCode);
+            result.put("success", "success".equals(rawBody));
+            result.put("rawBody", rawBody);
+            result.put("vin", vin);
+            result.put("connCode", connCode);
+            log.info("[即插即充] vin={}, connCode={}, result={}", vin, connCode, rawBody);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            log.error("[即插即充] 失败: vin={}, error={}", vin, e.getMessage(), e);
+        }
+        return result;
     }
 
     /**
