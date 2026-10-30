@@ -102,23 +102,24 @@ public class ChargeOrderController {
      * VIN 码充电（完整流程）。
      * 查数据库 charge_vehicle_pnc → 改 platform_id = 6 → 发起充电。
      *
-     * @param request { "vin": "VIN码" }
+     * @param request { "vin": "VIN码", "connCode": "充电桩编码" }
      * @return 充电结果
      */
     @PostMapping("/vin-charge")
     public ResponseEntity<Map<String, Object>> vinCharge(@RequestBody Map<String, Object> request) {
         String vin = (String) request.get("vin");
-        log.info("[API] POST /api/vin-charge, vin={}", vin);
+        String connCode = (String) request.get("connCode");
+        log.info("[API] POST /api/vin-charge, vin={}, connCode={}", vin, connCode);
 
-        if (vin == null || vin.isEmpty()) {
+        if (vin == null || vin.isEmpty() || connCode == null || connCode.isEmpty()) {
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("error", "vin 必填");
+            err.put("error", "vin 和 connCode 均必填");
             return ResponseEntity.badRequest().body(err);
         }
 
         try {
-            Map<String, Object> result = com.ev.charging.tool.util.VinChargeModule.execute(vin);
+            Map<String, Object> result = com.ev.charging.tool.util.VinChargeModule.execute(vin, connCode);
             if (Boolean.TRUE.equals(result.get("success"))) {
                 return ResponseEntity.ok(result);
             } else {

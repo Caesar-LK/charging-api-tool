@@ -1,6 +1,7 @@
 package com.ev.charging.tool.config;
 
 import com.ev.charging.tool.util.Config;
+import com.ev.charging.tool.util.DatabaseUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -20,6 +21,10 @@ public class ChargingConfigInitializer {
     @EventListener(ApplicationReadyEvent.class)
     public void initConfig() {
         Config.init(properties);
-        log.info("[ChargingConfig] 配置初始化完成");
+        String pwd = properties.getDbPassword();
+        DatabaseUtil.initPassword(pwd);
+        log.info("[ChargingConfig] 配置初始化完成, dbPassword={} len={}",
+                pwd != null ? pwd.substring(0, Math.min(4, pwd.length())) + "***" : "NULL",
+                pwd != null ? pwd.length() : 0);
     }
 }

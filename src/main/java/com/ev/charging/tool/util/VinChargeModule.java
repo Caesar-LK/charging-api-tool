@@ -29,8 +29,8 @@ public class VinChargeModule {
      * 查询 VIN 对应的 PNC 车辆列表。
      */
     public static List<Map<String, Object>> queryByVin(String vin) {
-        String sql = "SELECT id, vin, conn_code, charge_platform_id, vehicle_name, status " +
-                "FROM charge_vehicle_pnc WHERE vin = ? ORDER BY id LIMIT 10";
+        String sql = "SELECT id, vin, charge_platform_id, vehicle_id, status " +
+                "FROM charge_vehicle_pnc WHERE vin = ? AND is_delete = 0 ORDER BY id LIMIT 10";
         return DatabaseUtil.queryList(sql, vin);
     }
 
@@ -57,8 +57,9 @@ public class VinChargeModule {
 
     /**
      * 完整流程：查车 → 改 platform_id → 发起充电。
+     * connCode 由前端传入（桩编码）。
      */
-    public static Map<String, Object> execute(String vin) {
+    public static Map<String, Object> execute(String vin, String connCode) {
         Map<String, Object> result = new HashMap<>();
 
         // 1. 查 PNC 记录
@@ -72,7 +73,6 @@ public class VinChargeModule {
         // 2. 任选一条，改 platform_id = 6
         Map<String, Object> chosen = vehicles.get(0);
         long pncId = Long.parseLong(chosen.get("id").toString());
-        String connCode = chosen.getOrDefault("conn_code", "").toString();
 
         boolean updated = updatePlatformId(pncId);
         if (!updated) {
